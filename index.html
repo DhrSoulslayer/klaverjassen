@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Klaverjassen Score</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2c5530">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Klaverjassen">
+    <link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>♠️ Klaverjassen ♥️</h1>
+            <p class="subtitle">Score bijhouden - Wij vs Zij</p>
+        </header>
+
+        <!-- Team Stand bovenaan -->
+        <div class="team-stand">
+            <div class="stand-header">
+                <h2>🏆 Team Stand</h2>
+            </div>
+            <div class="stand-display">
+                <div class="team-stand-item team-wij">
+                    <span class="team-name">Team Wij</span>
+                    <span class="team-score" id="teamWijTotal">0</span>
+                </div>
+                <div class="stand-vs">VS</div>
+                <div class="team-stand-item team-zij">
+                    <span class="team-name">Team Zij</span>
+                    <span class="team-score" id="teamZijTotal">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="game-controls">
+            <button id="newGameBtn" class="btn btn-primary">Nieuw Spel</button>
+            <button id="addPlayerBtn" class="btn btn-secondary">Speler Toevoegen</button>
+            <button id="saveGameBtn" class="btn btn-success">Spel Opslaan</button>
+        </div>
+
+        <div class="round-input">
+            <h3>Ronde Score</h3>
+            <div class="round-form">
+                <div class="team-scores">
+                    <div class="team-score-input">
+                        <label for="scoreWij">Team Wij:</label>
+                        <input type="number" id="scoreWij" placeholder="Score" step="1">
+                    </div>
+                    <div class="team-score-input">
+                        <label for="scoreZij">Team Zij:</label>
+                        <input type="number" id="scoreZij" placeholder="Score" step="1">
+                    </div>
+                </div>
+                <button id="addRoundBtn" class="btn btn-success" disabled>Ronde Toevoegen</button>
+            </div>
+        </div>
+
+        <!-- Spelers sectie (minder prominent) -->
+        <div class="players-section">
+            <h3>👥 Spelers</h3>
+            <div class="teams-container">
+                <div class="team-section compact">
+                    <h4 class="team-title team-wij">Team Wij</h4>
+                    <div class="team-players" id="teamWijPlayers">
+                        <!-- Team Wij players will be added here -->
+                    </div>
+                </div>
+                
+                <div class="team-section compact">
+                    <h4 class="team-title team-zij">Team Zij</h4>
+                    <div class="team-players" id="teamZijPlayers">
+                        <!-- Team Zij players will be added here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="game-summary" id="gameSummary" style="display: none;">
+            <h3>Spel Samenvatting</h3>
+            <div class="summary-content" id="summaryContent">
+                <!-- Game summary will be displayed here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Player Modal -->
+    <div id="addPlayerModal" class="modal">
+        <div class="modal-content">
+            <h2>Speler Toevoegen</h2>
+            <div id="playerGuidance" class="player-guidance" style="display: none;">
+                <!-- Guidance message will be shown here -->
+            </div>
+            <div class="team-selection">
+                <label>Selecteer Team:</label>
+                <div class="team-buttons">
+                    <button type="button" class="team-btn active" data-team="wij" onclick="game.selectTeam('wij')">Team Wij</button>
+                    <button type="button" class="team-btn" data-team="zij" onclick="game.selectTeam('zij')">Team Zij</button>
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="playerName">Naam:</label>
+                <input type="text" id="playerName" placeholder="Voer naam in" maxlength="20">
+            </div>
+            <div class="modal-buttons">
+                <button id="confirmAddPlayer" class="btn btn-primary">Toevoegen</button>
+                <button id="cancelAddPlayer" class="btn btn-secondary">Annuleren</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
