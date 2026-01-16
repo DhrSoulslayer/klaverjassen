@@ -19,45 +19,209 @@
             <p class="subtitle">Score bijhouden - Wij vs Zij</p>
         </header>
 
-        <!-- Team Stand bovenaan -->
-        <div class="team-stand">
-            <div class="stand-header">
-                <h2>🏆 Team Stand</h2>
-            </div>
-            <div class="stand-display">
-                <div class="team-stand-item team-wij">
-                    <span class="team-name">Team Wij</span>
-                    <span class="team-score" id="teamWijTotal">0</span>
+        <!-- Game Setup Modal (shown when no players) -->
+        <div id="gameSetupModal" class="modal">
+            <div class="modal-content setup-modal">
+                <h2>🎮 Nieuw Spel Starten</h2>
+                <p class="setup-info">Voer de namen in van de 4 spelers:</p>
+                
+                <div class="setup-teams">
+                    <div class="setup-team">
+                        <h3 class="team-wij">Team Wij</h3>
+                        <div class="setup-players">
+                            <div class="input-group">
+                                <label for="playerWij1">Speler 1:</label>
+                                <input type="text" id="playerWij1" placeholder="Naam speler 1" maxlength="20" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="playerWij2">Speler 2:</label>
+                                <input type="text" id="playerWij2" placeholder="Naam speler 2" maxlength="20" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="setup-team">
+                        <h3 class="team-zij">Team Zij</h3>
+                        <div class="setup-players">
+                            <div class="input-group">
+                                <label for="playerZij1">Speler 1:</label>
+                                <input type="text" id="playerZij1" placeholder="Naam speler 1" maxlength="20" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="playerZij2">Speler 2:</label>
+                                <input type="text" id="playerZij2" placeholder="Naam speler 2" maxlength="20" required>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="stand-vs">VS</div>
-                <div class="team-stand-item team-zij">
-                    <span class="team-name">Team Zij</span>
-                    <span class="team-score" id="teamZijTotal">0</span>
+                
+                <div class="modal-buttons">
+                    <button id="startGameBtn" class="btn btn-success">Spel Starten</button>
+                    <button id="cancelSetupBtn" class="btn btn-secondary">Annuleren</button>
                 </div>
             </div>
         </div>
 
-        <div class="game-controls">
-            <button id="newGameBtn" class="btn btn-primary">Nieuw Spel</button>
-            <button id="addPlayerBtn" class="btn btn-secondary">Speler Toevoegen</button>
-            <button id="saveGameBtn" class="btn btn-success">Spel Opslaan</button>
-        </div>
+        <!-- Main Game UI (hidden until players are set) -->
+        <div id="mainGameUI" style="display: none;">
+            <!-- Team Stand bovenaan -->
+            <div class="team-stand">
+                <div class="stand-header">
+                    <h2>🏆 Team Stand</h2>
+                </div>
+                <div class="stand-display">
+                    <div class="team-stand-item team-wij">
+                        <span class="team-name">Team Wij</span>
+                        <span class="team-score" id="teamWijTotal">0</span>
+                    </div>
+                    <div class="stand-vs">VS</div>
+                    <div class="team-stand-item team-zij">
+                        <span class="team-name">Team Zij</span>
+                        <span class="team-score" id="teamZijTotal">0</span>
+                    </div>
+                </div>
+            </div>
 
-        <div class="round-input">
+            <div class="game-controls">
+                <button id="newGameBtn" class="btn btn-primary">Nieuw Spel</button>
+                <button id="addPlayerBtn" class="btn btn-secondary" style="display: none;">Speler Toevoegen</button>
+                <button id="saveGameBtn" class="btn btn-success">Spel Opslaan</button>
+            </div>
+
+            <div class="round-input">
             <h3>Ronde Score</h3>
             <div class="round-form">
+                <!-- Wie is gegaan (voor nat check) -->
+                <div class="form-group">
+                    <label for="whoPlayed">Wie is gegaan? (wie speelt):</label>
+                    <select id="whoPlayed" class="form-select">
+                        <option value="">Selecteer...</option>
+                        <option value="wij">Team Wij</option>
+                        <option value="zij">Team Zij</option>
+                    </select>
+                </div>
+
+                <!-- Troefkleur -->
+                <div class="form-group">
+                    <label for="trumpSuit">Troefkleur:</label>
+                    <select id="trumpSuit" class="form-select">
+                        <option value="">Geen troef</option>
+                        <option value="harten">♥️ Harten</option>
+                        <option value="ruiten">♦️ Ruiten</option>
+                        <option value="klaveren">♣️ Klaveren</option>
+                        <option value="schoppen">♠️ Schoppen</option>
+                    </select>
+                </div>
+
+                <!-- Kaartpunten (zonder roem) -->
                 <div class="team-scores">
                     <div class="team-score-input">
-                        <label for="scoreWij">Team Wij:</label>
-                        <input type="number" id="scoreWij" placeholder="Score" step="1">
+                        <label for="cardPointsWij">Team Wij - Kaartpunten:</label>
+                        <input type="number" id="cardPointsWij" placeholder="Kaartpunten" step="1" min="0" max="162">
+                        <small class="form-help">Zonder roem en bonussen</small>
                     </div>
                     <div class="team-score-input">
-                        <label for="scoreZij">Team Zij:</label>
-                        <input type="number" id="scoreZij" placeholder="Score" step="1">
+                        <label for="cardPointsZij">Team Zij - Kaartpunten:</label>
+                        <input type="number" id="cardPointsZij" placeholder="Wordt automatisch berekend" step="1" min="0" max="162" readonly>
+                        <small class="form-help">Automatisch: 162 - Team Wij</small>
                     </div>
                 </div>
+
+                <!-- Roem Team Wij -->
+                <div class="roem-section">
+                    <h4>Roem Team Wij:</h4>
+                    <div class="roem-grid">
+                        <label class="roem-checkbox">
+                            <input type="checkbox" id="roemWijDriekaart" value="20">
+                            <span>Driekaart (+20)</span>
+                        </label>
+                        <label class="roem-checkbox">
+                            <input type="checkbox" id="roemWijVierkaart" value="50">
+                            <span>Vierkaart (+50)</span>
+                        </label>
+                        <label class="roem-checkbox">
+                            <input type="checkbox" id="roemWijStuk" value="20">
+                            <span>Stuk (+20)</span>
+                        </label>
+                        <label class="roem-checkbox">
+                            <input type="checkbox" id="roemWijVierGelijken" value="100">
+                            <span>Vier gelijken (+100)</span>
+                        </label>
+                        <label class="roem-checkbox">
+                            <input type="checkbox" id="roemWijVierBoeren" value="200">
+                            <span>Vier boeren (+200)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Roem Team Zij -->
+                <div class="roem-section">
+                    <h4>Roem Team Zij:</h4>
+                    <div class="roem-grid">
+                        <label class="roem-checkbox">
+                            <input type="checkbox" id="roemZijDriekaart" value="20">
+                            <span>Driekaart (+20)</span>
+                        </label>
+                        <label class="roem-checkbox">
+                            <input type="checkbox" id="roemZijVierkaart" value="50">
+                            <span>Vierkaart (+50)</span>
+                        </label>
+                        <label class="roem-checkbox">
+                            <input type="checkbox" id="roemZijStuk" value="20">
+                            <span>Stuk (+20)</span>
+                        </label>
+                        <label class="roem-checkbox">
+                            <input type="checkbox" id="roemZijVierGelijken" value="100">
+                            <span>Vier gelijken (+100)</span>
+                        </label>
+                        <label class="roem-checkbox">
+                            <input type="checkbox" id="roemZijVierBoeren" value="200">
+                            <span>Vier boeren (+200)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Bonussen -->
+                <div class="bonus-section">
+                    <h4>Bonussen:</h4>
+                    <div class="bonus-grid">
+                        <div class="bonus-item">
+                            <label for="lastTrickWinner">Laatste slag winnaar:</label>
+                            <select id="lastTrickWinner" class="form-select">
+                                <option value="">Geen</option>
+                                <option value="wij">Team Wij (+10)</option>
+                                <option value="zij">Team Zij (+10)</option>
+                            </select>
+                        </div>
+                        <div class="bonus-item">
+                            <label class="bonus-checkbox">
+                                <input type="checkbox" id="pitWij">
+                                <span>Pit Team Wij (alle 8 slagen) (+100)</span>
+                            </label>
+                        </div>
+                        <div class="bonus-item">
+                            <label class="bonus-checkbox">
+                                <input type="checkbox" id="pitZij">
+                                <span>Pit Team Zij (alle 8 slagen) (+100)</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Score preview -->
+                <div class="score-preview" id="scorePreview" style="display: none;">
+                    <h4>Score Overzicht:</h4>
+                    <div id="previewContent"></div>
+                </div>
+
                 <button id="addRoundBtn" class="btn btn-success" disabled>Ronde Toevoegen</button>
             </div>
+        </div>
+
+        <!-- Rondes Lijst -->
+        <div class="rounds-list" id="roundsList" style="display: none;">
+            <h3>Gespeelde Rondes</h3>
+            <div id="roundsListContent"></div>
         </div>
 
         <!-- Spelers sectie (minder prominent) -->

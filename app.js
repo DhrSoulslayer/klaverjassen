@@ -5,12 +5,17 @@ class KlaverjassenGame {
         this.currentRound = 1;
         this.selectedTeam = 'wij';
         this.startTime = new Date().toISOString();
+        this.gameStarted = false;
         
         this.bindEvents();
         this.loadGameState();
+        this.checkGameState();
         this.renderTeams();
         this.updateAddRoundButton();
         this.updateGameSummary();
+        this.renderRoundsList();
+        this.setupScorePreview();
+        this.setupAutoCalculate();
     }
 
 
@@ -22,6 +27,28 @@ class KlaverjassenGame {
         document.getElementById('saveGameBtn').addEventListener('click', () => this.saveCurrentGame());
         document.getElementById('confirmAddPlayer').addEventListener('click', () => this.addPlayer());
         document.getElementById('cancelAddPlayer').addEventListener('click', () => this.hideAddPlayerModal());
+        
+        // Setup modal events
+        document.getElementById('startGameBtn').addEventListener('click', () => this.startGameFromSetup());
+        document.getElementById('cancelSetupBtn').addEventListener('click', () => this.cancelSetup());
+        
+        // Handle Enter key in setup inputs
+        ['playerWij1', 'playerWij2', 'playerZij1', 'playerZij2'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const nextId = this.getNextSetupInput(id);
+                        if (nextId) {
+                            document.getElementById(nextId).focus();
+                        } else {
+                            this.startGameFromSetup();
+                        }
+                    }
+                });
+            }
+        });
         
         // Team selection in modal
         document.querySelectorAll('.team-btn').forEach(btn => {
@@ -43,6 +70,89 @@ class KlaverjassenGame {
                 this.addPlayer();
             }
         });
+    }
+
+    setupScorePreview() {
+        const inputs = [
+            'cardPointsWij', 'cardPointsZij', 'whoPlayed', 'trumpSuit',
+            'lastTrickWinner', 'pitWij', 'pitZij',
+            'roemWijDriekaart', 'roemWijVierkaart', 'roemWijStuk', 'roemWijVierGelijken', 'roemWijVierBoeren',
+            'roemZijDriekaart', 'roemZijVierkaart', 'roemZijStuk', 'roemZijVierGelijken', 'roemZijVierBoeren'
+        ];
+
+        inputs.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('change', () => this.updateScorePreview());
+                element.addEventListener('input', () => this.updateScorePreview());
+            }
+        });
+    }
+
+    updateScorePreview() {
+        const preview = document.getElementById('scorePreview');
+        const content = document.getElementById('previewContent');
+        
+        const cardPointsWij = parseInt(document.getElementById('cardPointsWij').value) || 0;
+        const cardPointsZij = parseInt(document.getElementById('cardPointsZij').value) || 0;
+        const roemWij = this.calculateRoem('wij');
+        const roemZij = this.calculateRoem('zij');
+        const lastTrickWinner = document.getElementById('lastTrickWinner').value;
+        const pitWij = document.getElementById('pitWij').checked;
+        const pitZij = document.getElementById('pitZij').checked;
+        const whoPlayed = document.getElementById('whoPlayed').value;
+
+        if (cardPointsWij === 0 && cardPointsZij === 0 && roemWij === 0 && roemZij === 0) {
+            preview.style.display = 'none';
+            return;
+        }
+
+        let scoreWij = cardPointsWij + roemWij;
+        let scoreZij = cardPointsZij + roemZij;
+
+        if (lastTrickWinner === 'wij') scoreWij += 10;
+        if (lastTrickWinner === 'zij') scoreZij += 10;
+        if (pitWij) scoreWij += 100;
+        if (pitZij) scoreZij += 100;
+
+        // Check for nat
+        let natWarning = '';
+        if (whoPlayed && cardPointsWij + cardPointsZij === 162) {
+            const playingTeamCardPoints = whoPlayed === 'wij' ? cardPointsWij : cardPointsZij;
+            if (playingTeamCardPoints < 82) {
+                natWarning = `<div class="nat-warning">⚠️ NAT: ${whoPlayed === 'wij' ? 'Team Wij' : 'Team Zij'} heeft < 82 punten! Alle punten gaan naar tegenstander.</div>`;
+                if (whoPlayed === 'wij') {
+                    scoreZij = scoreWij + scoreZij;
+                    scoreWij = 0;
+                } else {
+                    scoreWij = scoreWij + scoreZij;
+                    scoreZij = 0;
+                }
+            }
+        }
+
+        // Validate card points
+        let validationWarning = '';
+        if (cardPointsWij + cardPointsZij !== 162 && cardPointsWij > 0 && cardPointsZij > 0) {
+            validationWarning = `<div class="validation-warning">⚠️ Kaartpunten tellen op tot ${cardPointsWij + cardPointsZij}, moeten 162 zijn.</div>`;
+        }
+
+        content.innerHTML = `
+            ${validationWarning}
+            ${natWarning}
+            <div class="preview-row">
+                <div class="preview-team">
+                    <strong>Team Wij:</strong>
+                    <div>Kaarten: ${cardPointsWij} + Roem: ${roemWij} + Laatste slag: ${lastTrickWinner === 'wij' ? 10 : 0} + Pit: ${pitWij ? 100 : 0} = <strong>${scoreWij}</strong></div>
+                </div>
+                <div class="preview-team">
+                    <strong>Team Zij:</strong>
+                    <div>Kaarten: ${cardPointsZij} + Roem: ${roemZij} + Laatste slag: ${lastTrickWinner === 'zij' ? 10 : 0} + Pit: ${pitZij ? 100 : 0} = <strong>${scoreZij}</strong></div>
+                </div>
+            </div>
+        `;
+
+        preview.style.display = 'block';
     }
 
     selectTeam(team) {
@@ -214,26 +324,100 @@ class KlaverjassenGame {
             alert(message);
             return;
         }
-        
-        const scoreWij = parseInt(document.getElementById('scoreWij').value) || 0;
-        const scoreZij = parseInt(document.getElementById('scoreZij').value) || 0;
-        
-        if (scoreWij === 0 && scoreZij === 0) {
-            alert('Voer minimaal één score in voor een van de teams.');
+
+        // Get input values
+        const whoPlayed = document.getElementById('whoPlayed').value;
+        const trumpSuit = document.getElementById('trumpSuit').value;
+        const cardPointsWij = parseInt(document.getElementById('cardPointsWij').value) || 0;
+        // Automatically calculate team zij points
+        const cardPointsZij = 162 - cardPointsWij;
+
+        // Validate card points
+        if (cardPointsWij < 0 || cardPointsWij > 162) {
+            alert('Kaartpunten voor Team Wij moeten tussen 0 en 162 liggen.');
             return;
         }
-        
+
+        if (cardPointsWij === 0) {
+            alert('Voer de kaartpunten voor Team Wij in.');
+            return;
+        }
+
+        // Calculate roem for both teams
+        const roemWij = this.calculateRoem('wij');
+        const roemZij = this.calculateRoem('zij');
+
+        // Get bonuses
+        const lastTrickWinner = document.getElementById('lastTrickWinner').value;
+        const pitWij = document.getElementById('pitWij').checked;
+        const pitZij = document.getElementById('pitZij').checked;
+
+        // Calculate base scores (card points + roem)
+        let scoreWij = cardPointsWij + roemWij;
+        let scoreZij = cardPointsZij + roemZij;
+
+        // Add last trick bonus
+        if (lastTrickWinner === 'wij') {
+            scoreWij += 10;
+        } else if (lastTrickWinner === 'zij') {
+            scoreZij += 10;
+        }
+
+        // Add pit bonus
+        if (pitWij) {
+            scoreWij += 100;
+        }
+        if (pitZij) {
+            scoreZij += 100;
+        }
+
+        // NAT CHECK: If playing team has < 82 card points (without roem), all points go to opponent
+        let natApplied = false;
+        if (whoPlayed && cardPointsWij + cardPointsZij === 162) {
+            const playingTeamCardPoints = whoPlayed === 'wij' ? cardPointsWij : cardPointsZij;
+            if (playingTeamCardPoints < 82) {
+                // NAT: All points go to opponent
+                natApplied = true;
+                if (whoPlayed === 'wij') {
+                    scoreZij = scoreWij + scoreZij;
+                    scoreWij = 0;
+                } else {
+                    scoreWij = scoreWij + scoreZij;
+                    scoreZij = 0;
+                }
+            }
+        }
+
+        // Create round object with detailed breakdown
         const round = {
             round: this.rounds.length + 1,
+            whoPlayed: whoPlayed || null,
+            trumpSuit: trumpSuit || null,
+            breakdown: {
+                wij: {
+                    cardPoints: cardPointsWij,
+                    roem: roemWij,
+                    lastTrick: lastTrickWinner === 'wij' ? 10 : 0,
+                    pit: pitWij ? 100 : 0,
+                    total: scoreWij
+                },
+                zij: {
+                    cardPoints: cardPointsZij,
+                    roem: roemZij,
+                    lastTrick: lastTrickWinner === 'zij' ? 10 : 0,
+                    pit: pitZij ? 100 : 0,
+                    total: scoreZij
+                }
+            },
             scores: { wij: scoreWij, zij: scoreZij },
+            natApplied: natApplied,
             timestamp: new Date().toISOString()
         };
         
         this.rounds.push(round);
         
         // Clear input fields
-        document.getElementById('scoreWij').value = '';
-        document.getElementById('scoreZij').value = '';
+        this.clearRoundForm();
         
         // Update scores for all players
         this.recalculateScores();
@@ -243,9 +427,189 @@ class KlaverjassenGame {
         
         // Update UI
         this.updateGameSummary();
+        this.renderRoundsList();
         
         // Show success message
-        this.showRoundAddedMessage();
+        if (natApplied) {
+            this.showMessage(`Ronde toegevoegd! ⚠️ NAT toegepast - ${whoPlayed === 'wij' ? 'Team Wij' : 'Team Zij'} had < 82 punten!`, 'warning');
+        } else {
+            this.showRoundAddedMessage();
+        }
+    }
+
+    calculateRoem(team) {
+        const prefix = team === 'wij' ? 'roemWij' : 'roemZij';
+        let roem = 0;
+
+        if (document.getElementById(`${prefix}Driekaart`).checked) roem += 20;
+        if (document.getElementById(`${prefix}Vierkaart`).checked) roem += 50;
+        if (document.getElementById(`${prefix}Stuk`).checked) roem += 20;
+        if (document.getElementById(`${prefix}VierGelijken`).checked) roem += 100;
+        if (document.getElementById(`${prefix}VierBoeren`).checked) roem += 200;
+
+        return roem;
+    }
+
+    clearRoundForm() {
+        document.getElementById('whoPlayed').value = '';
+        document.getElementById('trumpSuit').value = '';
+        document.getElementById('cardPointsWij').value = '';
+        document.getElementById('cardPointsZij').value = '';
+        document.getElementById('lastTrickWinner').value = '';
+        document.getElementById('pitWij').checked = false;
+        document.getElementById('pitZij').checked = false;
+        
+        // Clear roem checkboxes
+        ['wij', 'zij'].forEach(team => {
+            const prefix = `roem${team.charAt(0).toUpperCase() + team.slice(1)}`;
+            document.getElementById(`${prefix}Driekaart`).checked = false;
+            document.getElementById(`${prefix}Vierkaart`).checked = false;
+            document.getElementById(`${prefix}Stuk`).checked = false;
+            document.getElementById(`${prefix}VierGelijken`).checked = false;
+            document.getElementById(`${prefix}VierBoeren`).checked = false;
+        });
+
+        // Hide preview
+        document.getElementById('scorePreview').style.display = 'none';
+    }
+
+    removeRound(roundIndex) {
+        if (confirm(`Weet je zeker dat je ronde ${roundIndex + 1} wilt verwijderen?`)) {
+            this.rounds.splice(roundIndex, 1);
+            // Renumber rounds
+            this.rounds.forEach((round, index) => {
+                round.round = index + 1;
+            });
+            this.recalculateScores();
+            this.saveGameState();
+            this.updateGameSummary();
+            this.renderRoundsList();
+            this.showMessage('Ronde verwijderd!', 'success');
+        }
+    }
+
+    editRound(roundIndex) {
+        const round = this.rounds[roundIndex];
+        if (!round) return;
+
+        // Fill form with round data
+        document.getElementById('whoPlayed').value = round.whoPlayed || '';
+        document.getElementById('trumpSuit').value = round.trumpSuit || '';
+        
+        if (round.breakdown) {
+            document.getElementById('cardPointsWij').value = round.breakdown.wij.cardPoints || '';
+            document.getElementById('cardPointsZij').value = round.breakdown.zij.cardPoints || '';
+            
+            // Set roem checkboxes
+            const roemWij = round.breakdown.wij.roem || 0;
+            const roemZij = round.breakdown.zij.roem || 0;
+            
+            this.setRoemCheckboxes('wij', roemWij);
+            this.setRoemCheckboxes('zij', roemZij);
+            
+            // Set bonuses
+            if (round.breakdown.wij.lastTrick > 0) {
+                document.getElementById('lastTrickWinner').value = 'wij';
+            } else if (round.breakdown.zij.lastTrick > 0) {
+                document.getElementById('lastTrickWinner').value = 'zij';
+            }
+            
+            document.getElementById('pitWij').checked = round.breakdown.wij.pit > 0;
+            document.getElementById('pitZij').checked = round.breakdown.zij.pit > 0;
+        } else {
+            // Legacy format - try to extract from scores
+            document.getElementById('cardPointsWij').value = round.scores.wij || '';
+            document.getElementById('cardPointsZij').value = round.scores.zij || '';
+        }
+
+        // Remove the round (will be re-added when form is submitted)
+        this.rounds.splice(roundIndex, 1);
+        this.recalculateScores();
+        this.saveGameState();
+        this.updateGameSummary();
+        this.renderRoundsList();
+
+        // Scroll to form
+        document.querySelector('.round-input').scrollIntoView({ behavior: 'smooth' });
+        this.showMessage('Ronde geladen voor bewerking. Pas aan en klik op "Ronde Toevoegen".', 'info');
+    }
+
+    setRoemCheckboxes(team, roemValue) {
+        const prefix = `roem${team.charAt(0).toUpperCase() + team.slice(1)}`;
+        const checkboxes = [
+            { id: `${prefix}Driekaart`, value: 20 },
+            { id: `${prefix}Vierkaart`, value: 50 },
+            { id: `${prefix}Stuk`, value: 20 },
+            { id: `${prefix}VierGelijken`, value: 100 },
+            { id: `${prefix}VierBoeren`, value: 200 }
+        ];
+
+        checkboxes.forEach(cb => {
+            document.getElementById(cb.id).checked = false;
+        });
+
+        // Try to match roem value (simple approach - may not be perfect for all combinations)
+        let remaining = roemValue;
+        const sorted = [...checkboxes].sort((a, b) => b.value - a.value);
+        
+        sorted.forEach(cb => {
+            if (remaining >= cb.value) {
+                document.getElementById(cb.id).checked = true;
+                remaining -= cb.value;
+            }
+        });
+    }
+
+    renderRoundsList() {
+        const container = document.getElementById('roundsList');
+        const content = document.getElementById('roundsListContent');
+
+        if (this.rounds.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = 'block';
+
+        content.innerHTML = this.rounds.map((round, index) => {
+            const breakdown = round.breakdown || {
+                wij: { cardPoints: round.scores.wij || 0, roem: 0, lastTrick: 0, pit: 0, total: round.scores.wij || 0 },
+                zij: { cardPoints: round.scores.zij || 0, roem: 0, lastTrick: 0, pit: 0, total: round.scores.zij || 0 }
+            };
+
+            const wijBreakdown = breakdown.wij;
+            const zijBreakdown = breakdown.zij;
+
+            return `
+                <div class="round-item ${round.natApplied ? 'nat-applied' : ''}">
+                    <div class="round-header">
+                        <h4>Ronde ${round.round} ${round.trumpSuit ? `(${round.trumpSuit})` : ''} ${round.natApplied ? '⚠️ NAT' : ''}</h4>
+                        <div class="round-actions">
+                            <button class="btn btn-small btn-secondary" onclick="game.editRound(${index})">Bewerken</button>
+                            <button class="btn btn-small btn-danger" onclick="game.removeRound(${index})">Verwijderen</button>
+                        </div>
+                    </div>
+                    <div class="round-details">
+                        <div class="round-team-detail">
+                            <strong>Team Wij:</strong>
+                            <span>Kaarten: ${wijBreakdown.cardPoints}</span>
+                            <span>Roem: ${wijBreakdown.roem}</span>
+                            <span>Laatste slag: ${wijBreakdown.lastTrick}</span>
+                            <span>Pit: ${wijBreakdown.pit}</span>
+                            <strong>Totaal: ${round.scores.wij}</strong>
+                        </div>
+                        <div class="round-team-detail">
+                            <strong>Team Zij:</strong>
+                            <span>Kaarten: ${zijBreakdown.cardPoints}</span>
+                            <span>Roem: ${zijBreakdown.roem}</span>
+                            <span>Laatste slag: ${zijBreakdown.lastTrick}</span>
+                            <span>Pit: ${zijBreakdown.pit}</span>
+                            <strong>Totaal: ${round.scores.zij}</strong>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
     }
 
     recalculateScores() {
@@ -406,10 +770,11 @@ class KlaverjassenGame {
         
         summary.style.display = 'block';
         
-        // Calculate team totals
+        // Calculate team totals with breakdown
+        const breakdown = this.calculateTotalBreakdown();
         const teamTotals = {
-            wij: this.players.wij.reduce((sum, player) => sum + player.total, 0),
-            zij: this.players.zij.reduce((sum, player) => sum + player.total, 0)
+            wij: breakdown.wij.total,
+            zij: breakdown.zij.total
         };
         
         // Update team stand bovenaan
@@ -424,19 +789,57 @@ class KlaverjassenGame {
                 <span>Rondes gespeeld:</span>
                 <span>${this.rounds.length}</span>
             </div>
-            <div class="summary-row ${winner === 'wij' ? 'winner' : ''}">
-                <span>Team Wij:</span>
-                <span>${teamTotals.wij}</span>
-            </div>
-            <div class="summary-row ${winner === 'zij' ? 'winner' : ''}">
-                <span>Team Zij:</span>
-                <span>${teamTotals.zij}</span>
+            <div class="summary-breakdown">
+                <div class="breakdown-team ${winner === 'wij' ? 'winner' : ''}">
+                    <strong>Team Wij:</strong>
+                    <div class="breakdown-details">
+                        <span>Kaarten: ${breakdown.wij.cardPoints}</span>
+                        <span>Roem: ${breakdown.wij.roem}</span>
+                        <span>Bonussen: ${breakdown.wij.bonuses}</span>
+                    </div>
+                    <div class="breakdown-total">Totaal: ${teamTotals.wij}</div>
+                </div>
+                <div class="breakdown-team ${winner === 'zij' ? 'winner' : ''}">
+                    <strong>Team Zij:</strong>
+                    <div class="breakdown-details">
+                        <span>Kaarten: ${breakdown.zij.cardPoints}</span>
+                        <span>Roem: ${breakdown.zij.roem}</span>
+                        <span>Bonussen: ${breakdown.zij.bonuses}</span>
+                    </div>
+                    <div class="breakdown-total">Totaal: ${teamTotals.zij}</div>
+                </div>
             </div>
             <div class="summary-row ${winner === 'tie' ? 'winner' : ''}">
                 <span>${winner === 'tie' ? 'Gelijkspel!' : `Team ${winner === 'wij' ? 'Wij' : 'Zij'} wint!`}</span>
                 <span>${winner === 'tie' ? '🤝' : '🏆'}</span>
             </div>
         `;
+    }
+
+    calculateTotalBreakdown() {
+        const breakdown = {
+            wij: { cardPoints: 0, roem: 0, bonuses: 0, total: 0 },
+            zij: { cardPoints: 0, roem: 0, bonuses: 0, total: 0 }
+        };
+
+        this.rounds.forEach(round => {
+            const roundBreakdown = round.breakdown || {
+                wij: { cardPoints: round.scores.wij || 0, roem: 0, lastTrick: 0, pit: 0, total: round.scores.wij || 0 },
+                zij: { cardPoints: round.scores.zij || 0, roem: 0, lastTrick: 0, pit: 0, total: round.scores.zij || 0 }
+            };
+
+            breakdown.wij.cardPoints += roundBreakdown.wij.cardPoints || 0;
+            breakdown.wij.roem += roundBreakdown.wij.roem || 0;
+            breakdown.wij.bonuses += (roundBreakdown.wij.lastTrick || 0) + (roundBreakdown.wij.pit || 0);
+            breakdown.wij.total += round.scores.wij || 0;
+
+            breakdown.zij.cardPoints += roundBreakdown.zij.cardPoints || 0;
+            breakdown.zij.roem += roundBreakdown.zij.roem || 0;
+            breakdown.zij.bonuses += (roundBreakdown.zij.lastTrick || 0) + (roundBreakdown.zij.pit || 0);
+            breakdown.zij.total += round.scores.zij || 0;
+        });
+
+        return breakdown;
     }
     
     updateTeamStand(wijTotal, zijTotal) {
@@ -458,28 +861,144 @@ class KlaverjassenGame {
         this.players = { wij: [], zij: [] };
         this.rounds = [];
         this.startTime = new Date().toISOString();
+        this.gameStarted = false;
         
-        this.renderTeams();
-        this.updateAddRoundButton();
-        this.updateGameSummary();
-        this.updateTeamStand(0, 0); // Reset team stand
+        // Hide main UI and show setup modal
+        document.getElementById('mainGameUI').style.display = 'none';
+        document.getElementById('gameSetupModal').style.display = 'block';
+        
+        // Clear setup form
+        document.getElementById('playerWij1').value = '';
+        document.getElementById('playerWij2').value = '';
+        document.getElementById('playerZij1').value = '';
+        document.getElementById('playerZij2').value = '';
+        
+        // Focus first input
+        document.getElementById('playerWij1').focus();
+        
         this.saveGameState();
     }
 
+    checkGameState() {
+        const wijPlayers = this.players.wij.length;
+        const zijPlayers = this.players.zij.length;
+        
+        if (wijPlayers === 2 && zijPlayers === 2) {
+            this.gameStarted = true;
+            document.getElementById('mainGameUI').style.display = 'block';
+            document.getElementById('gameSetupModal').style.display = 'none';
+        } else {
+            this.gameStarted = false;
+            document.getElementById('mainGameUI').style.display = 'none';
+            document.getElementById('gameSetupModal').style.display = 'block';
+        }
+    }
+
+    startGameFromSetup() {
+        const playerWij1 = document.getElementById('playerWij1').value.trim();
+        const playerWij2 = document.getElementById('playerWij2').value.trim();
+        const playerZij1 = document.getElementById('playerZij1').value.trim();
+        const playerZij2 = document.getElementById('playerZij2').value.trim();
+        
+        // Validate all names are filled
+        if (!playerWij1 || !playerWij2 || !playerZij1 || !playerZij2) {
+            alert('Voer alle 4 spelersnamen in voordat je het spel start.');
+            return;
+        }
+        
+        // Check for duplicate names
+        const allNames = [playerWij1, playerWij2, playerZij1, playerZij2];
+        const uniqueNames = [...new Set(allNames)];
+        if (uniqueNames.length !== allNames.length) {
+            alert('Elke speler moet een unieke naam hebben.');
+            return;
+        }
+        
+        // Add players
+        this.players.wij = [
+            { name: playerWij1, scores: [], total: 0 },
+            { name: playerWij2, scores: [], total: 0 }
+        ];
+        this.players.zij = [
+            { name: playerZij1, scores: [], total: 0 },
+            { name: playerZij2, scores: [], total: 0 }
+        ];
+        
+        this.gameStarted = true;
+        
+        // Hide setup modal and show main UI
+        document.getElementById('gameSetupModal').style.display = 'none';
+        document.getElementById('mainGameUI').style.display = 'block';
+        
+        // Update UI
+        this.renderTeams();
+        this.updateAddRoundButton();
+        this.updateGameSummary();
+        this.updateTeamStand(0, 0);
+        this.saveGameState();
+        
+        this.showMessage('Spel gestart! Je kunt nu beginnen met het invoeren van scores.', 'success');
+    }
+
+    cancelSetup() {
+        // If there are existing players, keep them
+        if (this.players.wij.length === 2 && this.players.zij.length === 2) {
+            document.getElementById('gameSetupModal').style.display = 'none';
+            document.getElementById('mainGameUI').style.display = 'block';
+        } else {
+            // If no players, show message
+            alert('Je moet minimaal 4 spelers toevoegen om te kunnen spelen.');
+        }
+    }
+
+    getNextSetupInput(currentId) {
+        const order = ['playerWij1', 'playerWij2', 'playerZij1', 'playerZij2'];
+        const currentIndex = order.indexOf(currentId);
+        return currentIndex < order.length - 1 ? order[currentIndex + 1] : null;
+    }
+
+    setupAutoCalculate() {
+        const cardPointsWij = document.getElementById('cardPointsWij');
+        if (cardPointsWij) {
+            cardPointsWij.addEventListener('input', () => {
+                const wijPoints = parseInt(cardPointsWij.value) || 0;
+                const zijPoints = 162 - wijPoints;
+                const cardPointsZij = document.getElementById('cardPointsZij');
+                if (cardPointsZij) {
+                    cardPointsZij.value = zijPoints >= 0 && zijPoints <= 162 ? zijPoints : '';
+                    // Trigger preview update
+                    this.updateScorePreview();
+                }
+            });
+        }
+    }
+
     showRoundAddedMessage() {
-        // Create a temporary success message
+        this.showMessage('Ronde toegevoegd!', 'success');
+    }
+
+    showMessage(text, type = 'success') {
+        const colors = {
+            success: '#4CAF50',
+            warning: '#ff9800',
+            error: '#f44336',
+            info: '#2196F3'
+        };
+        
         const message = document.createElement('div');
-        message.textContent = 'Ronde toegevoegd!';
+        message.textContent = text;
         message.style.cssText = `
             position: fixed;
             top: 20px;
             right: 20px;
-            background: #4CAF50;
+            background: ${colors[type] || colors.success};
             color: white;
             padding: 15px 25px;
             border-radius: 8px;
             z-index: 1001;
             animation: slideInRight 0.3s ease-out;
+            max-width: 300px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
         `;
         
         document.body.appendChild(message);
@@ -487,9 +1006,11 @@ class KlaverjassenGame {
         setTimeout(() => {
             message.style.animation = 'slideOutRight 0.3s ease-out';
             setTimeout(() => {
-                document.body.removeChild(message);
+                if (document.body.contains(message)) {
+                    document.body.removeChild(message);
+                }
             }, 300);
-        }, 2000);
+        }, type === 'warning' ? 4000 : 2000);
     }
 
     saveGameState() {
@@ -519,12 +1040,52 @@ class KlaverjassenGame {
                         return player;
                     });
                 }
+
+                // Convert old round format to new format if needed
+                this.rounds = this.rounds.map(round => {
+                    if (!round.breakdown && round.scores) {
+                        return {
+                            ...round,
+                            breakdown: {
+                                wij: {
+                                    cardPoints: round.scores.wij || 0,
+                                    roem: 0,
+                                    lastTrick: 0,
+                                    pit: 0,
+                                    total: round.scores.wij || 0
+                                },
+                                zij: {
+                                    cardPoints: round.scores.zij || 0,
+                                    roem: 0,
+                                    lastTrick: 0,
+                                    pit: 0,
+                                    total: round.scores.zij || 0
+                                }
+                            },
+                            natApplied: false
+                        };
+                    }
+                    return round;
+                });
+
+                // Render rounds list after loading
+                if (this.rounds.length > 0) {
+                    this.renderRoundsList();
+                }
+                
+                // Check if game should be started
+                this.checkGameState();
             } catch (e) {
                 console.error('Error loading game state:', e);
                 this.players = { wij: [], zij: [] };
                 this.rounds = [];
                 this.currentRound = 1;
+                this.gameStarted = false;
+                this.checkGameState();
             }
+        } else {
+            // No saved game, show setup
+            this.checkGameState();
         }
     }
 

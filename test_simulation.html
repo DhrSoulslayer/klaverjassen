@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <title>Klaverjassen Test Simulatie</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 8px; }
+        .success { color: green; }
+        .error { color: red; }
+        .warning { color: orange; }
+        .info { color: blue; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Klaverjassen Code Analyse & Simulatie</h1>
+    
+    <div class="test-section">
+        <h2>1. Code Analyse</h2>
+        <div id="codeAnalysis"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. Simulatie: 3 Rondes Spelen</h2>
+        <div id="simulation"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. Ontbrekende Features volgens Klaverjassen Regels</h2>
+        <div id="missingFeatures"></div>
+    </div>
+
+    <script>
+        // Simuleer de game class functionaliteit
+        class TestKlaverjassenGame {
+            constructor() {
+                this.players = { wij: [], zij: [] };
+                this.rounds = [];
+            }
+
+            addPlayer(name, team) {
+                const player = { name, scores: [], total: 0 };
+                this.players[team].push(player);
+            }
+
+            addRound(scoreWij, scoreZij) {
+                const round = {
+                    round: this.rounds.length + 1,
+                    scores: { wij: scoreWij, zij: scoreZij },
+                    timestamp: new Date().toISOString()
+                };
+                this.rounds.push(round);
+                this.recalculateScores();
+            }
+
+            recalculateScores() {
+                for (const team in this.players) {
+                    this.players[team].forEach(player => {
+                        player.scores = [];
+                        player.total = 0;
+                    });
+                }
+                
+                this.rounds.forEach(round => {
+                    for (const team in this.players) {
+                        this.players[team].forEach(player => {
+                            const roundScore = round.scores[team];
+                            player.scores.push(roundScore);
+                            player.total += roundScore;
+                        });
+                    }
+                });
+            }
+
+            getTeamTotal(team) {
+                return this.players[team].reduce((sum, player) => sum + player.total, 0);
+            }
+        }
+
+        // Analyse
+        function analyzeCode() {
+            const analysis = document.getElementById('codeAnalysis');
+            let html = '<h3>Wat de code WEL doet:</h3><ul>';
+            html += '<li class="success">✅ Ondersteunt 2 teams (Wij en Zij)</li>';
+            html += '<li class="success">✅ Maximaal 2 spelers per team (totaal 4 spelers)</li>';
+            html += '<li class="success">✅ Accepteert score per team per ronde</li>';
+            html += '<li class="success">✅ Telt scores op over alle rondes</li>';
+            html += '<li class="success">✅ Toont totale score per team</li>';
+            html += '<li class="success">✅ Slaat spel op in database</li>';
+            html += '<li class="success">✅ LocalStorage voor huidige spel</li>';
+            html += '</ul>';
+            
+            html += '<h3>Wat de code NIET doet (volgens klaverjassen regels):</h3><ul>';
+            html += '<li class="error">❌ Geen roem berekening (driekaart, vierkaart, stuk, vier gelijken, vier boeren)</li>';
+            html += '<li class="error">❌ Geen "nat" check (als team < 82 punten haalt, gaan alle punten naar tegenstander)</li>';
+            html += '<li class="error">❌ Geen "pit" bonus (100 punten als team alle 8 slagen wint)</li>';
+            html += '<li class="error">❌ Geen laatste slag bonus (+10 punten)</li>';
+            html += '<li class="error">❌ Geen validatie dat totaal per ronde 162 punten is (kaarten) + roem</li>';
+            html += '<li class="error">❌ Geen opsplitsing tussen kaartpunten, roem en bonussen</li>';
+            html += '<li class="warning">⚠️ Geen troefkleur tracking</li>';
+            html += '<li class="warning">⚠️ Geen wie "gegaan" is (wie speelt) tracking</li>';
+            html += '</ul>';
+            
+            analysis.innerHTML = html;
+        }
+
+        // Simulatie van 3 rondes
+        function simulateRounds() {
+            const simulation = document.getElementById('simulation');
+            const game = new TestKlaverjassenGame();
+            
+            // Setup spelers
+            game.addPlayer('Jan', 'wij');
+            game.addPlayer('Piet', 'wij');
+            game.addPlayer('Klaas', 'zij');
+            game.addPlayer('Henk', 'zij');
+            
+            let html = '<h3>Setup:</h3>';
+            html += '<pre>Team Wij: Jan, Piet\nTeam Zij: Klaas, Henk</pre>';
+            
+            // Ronde 1: Normale ronde
+            html += '<h3>Ronde 1:</h3>';
+            html += '<pre>Team Wij: 130 punten (100 kaarten + 20 roem + 10 laatste slag)\nTeam Zij: 82 punten (62 kaarten + 20 roem)</pre>';
+            game.addRound(130, 82);
+            html += `<p class="success">✅ Ronde toegevoegd</p>`;
+            html += `<p>Team Wij totaal: ${game.getTeamTotal('wij')} | Team Zij totaal: ${game.getTeamTotal('zij')}</p>`;
+            
+            // Ronde 2: Pit (alle slagen gewonnen)
+            html += '<h3>Ronde 2:</h3>';
+            html += '<pre>Team Zij: 470 punten (160 kaarten + 200 roem + 10 laatste slag + 100 pit)\nTeam Wij: 0 punten</pre>';
+            game.addRound(0, 470);
+            html += `<p class="success">✅ Ronde toegevoegd</p>`;
+            html += `<p>Team Wij totaal: ${game.getTeamTotal('wij')} | Team Zij totaal: ${game.getTeamTotal('zij')}</p>`;
+            
+            // Ronde 3: Nat (minder dan 82 punten)
+            html += '<h3>Ronde 3:</h3>';
+            html += '<pre>Team Wij speelt maar haalt maar 80 punten (70 kaarten + 10 laatste slag)\nTeam Zij: 142 punten (92 kaarten + 50 roem)\n\nNAT: Team Wij < 82, dus alle punten gaan naar Team Zij\nTeam Wij krijgt: 0\nTeam Zij krijgt: 222 (162 kaarten + 50 roem + 10 laatste slag)</pre>';
+            game.addRound(0, 222);
+            html += `<p class="success">✅ Ronde toegevoegd</p>`;
+            html += `<p>Team Wij totaal: ${game.getTeamTotal('wij')} | Team Zij totaal: ${game.getTeamTotal('zij')}</p>`;
+            
+            html += '<h3>Eindstand na 3 rondes:</h3>';
+            html += `<pre>Team Wij: ${game.getTeamTotal('wij')} punten\nTeam Zij: ${game.getTeamTotal('zij')} punten\n\nWinnaar: ${game.getTeamTotal('wij') > game.getTeamTotal('zij') ? 'Team Wij' : 'Team Zij'}</pre>`;
+            
+            html += '<h3>Conclusie simulatie:</h3>';
+            html += '<p class="success">✅ De code kan scores invoeren en optellen</p>';
+            html += '<p class="error">❌ De code berekent NIET automatisch roem, nat, pit, laatste slag</p>';
+            html += '<p class="info">ℹ️ Je moet handmatig alle punten (inclusief roem/bonussen) invoeren</p>';
+            html += '<p class="warning">⚠️ Er is geen validatie of de ingevoerde scores kloppen volgens klaverjassen regels</p>';
+            
+            simulation.innerHTML = html;
+        }
+
+        // Ontbrekende features
+        function listMissingFeatures() {
+            const missing = document.getElementById('missingFeatures');
+            let html = '<h3>Lijst van wijzigingen nodig volgens klaverjassen regels:</h3>';
+            html += '<ol>';
+            
+            html += '<li><strong>Roem invoer/berekening</strong><br>';
+            html += '   <ul>';
+            html += '   <li>Driekaart (3 op een rij): +20 punten</li>';
+            html += '   <li>Vierkaart (4 op een rij): +50 punten</li>';
+            html += '   <li>Stuk (Heer + Vrouw troef): +20 punten</li>';
+            html += '   <li>Vier gelijken (4x10, 4xKoning, 4xVrouw, 4xAas): +100 punten</li>';
+            html += '   <li>Vier boeren: +200 punten</li>';
+            html += '   </ul>';
+            html += '   <em>Actie: Voeg invoervelden toe voor roem per team per ronde, of automatische detectie</em></li>';
+            
+            html += '<li><strong>Laatste slag bonus</strong><br>';
+            html += '   <em>Actie: Vraag wie de laatste slag heeft gewonnen, voeg +10 punten toe</em></li>';
+            
+            html += '<li><strong>Pit (Mars) bonus</strong><br>';
+            html += '   <em>Actie: Vraag of een team alle 8 slagen heeft gewonnen, voeg +100 punten toe</em></li>';
+            
+            html += '<li><strong>Nat check</strong><br>';
+            html += '   <ul>';
+            html += '   <li>Als het spelende team < 82 kaartpunten haalt (zonder roem), gaan ALLE punten naar tegenstander</li>';
+            html += '   <li>Moet weten wie "gegaan" is (wie speelt)</li>';
+            html += '   </ul>';
+            html += '   <em>Actie: Vraag wie "gegaan" is per ronde, check kaartpunten (zonder roem), pas nat toe indien nodig</em></li>';
+            
+            html += '<li><strong>Score validatie</strong><br>';
+            html += '   <ul>';
+            html += '   <li>Kaartpunten moeten optellen tot 162 (totaal punten in kaartspel)</li>';
+            html += '   <li>Roem en bonussen komen daar bovenop</li>';
+            html += '   </ul>';
+            html += '   <em>Actie: Valideer dat kaartpunten + roem + bonussen kloppen</em></li>';
+            
+            html += '<li><strong>Opsplitsing scores</strong><br>';
+            html += '   <em>Actie: Toon per ronde: kaartpunten, roem, bonussen, totaal</em></li>';
+            
+            html += '<li><strong>Troefkleur tracking (optioneel)</strong><br>';
+            html += '   <em>Actie: Voeg dropdown toe om troefkleur per ronde te selecteren (voor referentie)</em></li>';
+            
+            html += '<li><strong>Wie "gegaan" is (optioneel maar aanbevolen)</strong><br>';
+            html += '   <em>Actie: Vraag per ronde welk team speelt (voor nat check)</em></li>';
+            
+            html += '</ol>';
+            
+            html += '<h3>Prioriteit:</h3>';
+            html += '<p><strong>Hoog:</strong> Nat check, Laatste slag bonus, Roem invoer</p>';
+            html += '<p><strong>Medium:</strong> Pit bonus, Score validatie, Opsplitsing scores</p>';
+            html += '<p><strong>Laag:</strong> Troefkleur tracking, Wie "gegaan" is (alleen nodig voor nat check)</p>';
+            
+            missing.innerHTML = html;
+        }
+
+        // Run alles
+        analyzeCode();
+        simulateRounds();
+        listMissingFeatures();
+    </script>
+</body>
+</html>
