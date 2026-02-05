@@ -10,9 +10,17 @@ from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 import sqlite3
+import re
 
 # Database setup
 DB_FILE = 'klaverjassen_games.db'
+
+# Security: Admin credentials (change these for production)
+ADMIN_USERNAME = 'admin'
+ADMIN_PASSWORD = 'klaverjassen2024'
+
+# Security: Allowed file extensions for static files
+ALLOWED_EXTENSIONS = {'.html', '.css', '.js', '.json', '.png', '.ico', '.svg'}
 
 def init_database():
     """Initialize SQLite database with games table"""
@@ -155,6 +163,117 @@ def get_game_stats():
     }
 
 class KlaverjassenHandler(BaseHTTPRequestHandler):
+    
+    def log_message(self, format, *args):
+        """Custom logging to avoid console spam"""
+        pass
+    
+    def _send_security_headers(self):
+        """Send security headers with all responses"""
+        # Content Security Policy - only allow same origin
+        self.send_header('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'")
+        # Prevent clickjacking
+        self.send_header('X-Frame-Options', 'SAMEORIGIN')
+        # Prevent MIME type sniffing
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        # XSS protection header for older browsers
+        self.send_header('X-XSS-Protection', '1; mode=block')
+        # Referrer policy
+        self.send_header('Referrer-Policy', 'strict-origin-when-cross-origin')
+    
+    def _check_basic_auth(self):
+        """Check basic authentication for admin endpoints"""
+        auth_header = self.headers.get('Authorization', '')
+        if not auth_header.startswith('Basic '):
+            return False
+        
+        try:
+            import base64
+            credentials = base64.b64decode(auth_header[6:]).decode('utf-8')
+            username, password = credentials.split(':', 1)
+            return username == ADMIN_USERNAME and password == ADMIN_PASSWORD
+        except Exception:
+            return False
+    
+    def _send_auth_required(self):
+        """Send 401 Unauthorized response"""
+        self.send_response(401)
+        self._send_security_headers()
+        self.send_header('WWW-Authenticate', 'Basic realm="Admin Area"')
+        self.send_header('Content-Type', 'text/plain')
+        self.end_headers()
+        self.wfile.write(b'Authentication required')
+    
+    def _validate_game_data(self, game_data):
+        """Validate incoming game data structure"""
+        errors = []
+        
+        # Check required fields
+        if not isinstance(game_data, dict):
+            errors.append('Game data must be an object')
+            return errors
+        
+        # Validate players structure
+        if 'players' not in game_data:
+            errors.append('Missing players field')
+        else:
+            players = game_data['players']
+            if not isinstance(players, dict):
+                errors.append('Players must be an object')
+            else:
+                for team in ['wij', 'zij']:
+                    if team not in players:
+                        errors.append(f'Missing {team} team in players')
+                    else:
+                        if not isinstance(players[team], list):
+                            errors.append(f'{team} players must be an array')
+        
+        # Validate rounds structure
+        if 'rounds' not in game_data:
+            errors.append('Missing rounds field')
+        else:
+            rounds = game_data['rounds']
+            if not isinstance(rounds, list):
+                errors.append('Rounds must be an array')
+            else:
+                for i, round_data in enumerate(rounds):
+                    if not isinstance(round_data, dict):
+                        errors.append(f'Round {i} must be an object')
+                    elif 'scores' not in round_data:
+                        errors.append(f'Round {i} missing scores')
+        
+        # Validate teamTotals
+        if 'teamTotals' not in game_data:
+            errors.append('Missing teamTotals field')
+        else:
+            totals = game_data['teamTotals']
+            if not isinstance(totals, dict):
+                errors.append('teamTotals must be an object')
+            else:
+                for team in ['wij', 'zij']:
+                    if team not in totals:
+                        errors.append(f'Missing {team} in teamTotals')
+                    elif not isinstance(totals[team], (int, float)):
+                        errors.append(f'{team} total must be a number')
+        
+        # Validate winner
+        if 'winner' not in game_data:
+            errors.append('Missing winner field')
+        elif game_data['winner'] not in ['Wij', 'Zij', 'Gelijkspel']:
+            errors.append('Invalid winner value')
+        
+        return errors
+    
+    def _sanitize_filename(self, filename):
+        """Prevent path traversal by sanitizing filename"""
+        # Remove any path components
+        filename = os.path.basename(filename)
+        # Only allow alphanumeric, underscore, hyphen, and dot
+        filename = re.sub(r'[^a-zA-Z0-9_\-\.]', '', filename)
+        # Prevent null bytes
+        filename = filename.replace('\x00', '')
+        return filename
+    
     def do_GET(self):
         """Handle GET requests"""
         parsed_path = urlparse(self.path)
@@ -163,19 +282,31 @@ class KlaverjassenHandler(BaseHTTPRequestHandler):
         if path == '/':
             self.serve_file('index.html', 'text/html')
         elif path == '/admin':
+            # Require authentication for admin interface
+            if not self._check_basic_auth():
+                self._send_auth_required()
+                return
             self.serve_admin_interface()
         elif path == '/api/games':
+            # Require authentication for API
+            if not self._check_basic_auth():
+                self._send_auth_required()
+                return
             self.serve_api_games()
         elif path == '/api/stats':
             self.serve_api_stats()
         elif path.endswith('.css'):
-            self.serve_file(path[1:], 'text/css')
+            safe_filename = self._sanitize_filename(path[1:])
+            self.serve_file(safe_filename, 'text/css')
         elif path.endswith('.js'):
-            self.serve_file(path[1:], 'application/javascript')
+            safe_filename = self._sanitize_filename(path[1:])
+            self.serve_file(safe_filename, 'application/javascript')
         elif path.endswith('.json'):
-            self.serve_file(path[1:], 'application/json')
+            safe_filename = self._sanitize_filename(path[1:])
+            self.serve_file(safe_filename, 'application/json')
         else:
-            self.serve_file(path[1:], 'text/html')
+            safe_filename = self._sanitize_filename(path[1:])
+            self.serve_file(safe_filename, 'text/html')
     
     def do_POST(self):
         """Handle POST requests"""
@@ -188,7 +319,18 @@ class KlaverjassenHandler(BaseHTTPRequestHandler):
             self.send_error(404)
     
     def serve_file(self, filename, content_type):
-        """Serve a static file"""
+        """Serve a static file with security headers"""
+        # Additional path validation - ensure file exists and is within allowed directory
+        if not filename or '..' in filename or filename.startswith('/'):
+            self.send_error(403)
+            return
+        
+        # Check if file extension is allowed
+        _, ext = os.path.splitext(filename)
+        if ext.lower() not in ALLOWED_EXTENSIONS:
+            self.send_error(403)
+            return
+        
         try:
             with open(filename, 'rb') as f:
                 content = f.read()
@@ -196,7 +338,9 @@ class KlaverjassenHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-Type', content_type)
             self.send_header('Content-Length', str(len(content)))
-            self.send_header('Access-Control-Allow-Origin', '*')
+            self._send_security_headers()
+            # Only allow CORS for API endpoints, not static files
+            # self.send_header('Access-Control-Allow-Origin', '*')  # Removed for security
             self.end_headers()
             self.wfile.write(content)
         except FileNotFoundError:
@@ -204,11 +348,26 @@ class KlaverjassenHandler(BaseHTTPRequestHandler):
     
     def serve_admin_interface(self):
         """Serve the admin interface HTML"""
+        # Double-check authentication
+        if not self._check_basic_auth():
+            self._send_auth_required()
+            return
+        
+        # Get the Authorization header to pass to the admin page
+        auth_header = self.headers.get('Authorization', '')
+        
         html = self.generate_admin_html()
+        
+        # Inject credentials into the page for API calls
+        if auth_header.startswith('Basic '):
+            # Store credentials in sessionStorage via inline script
+            credential_script = f'<script>sessionStorage.setItem("adminCredentials", "{auth_header[6:]}");</script>'
+            html = html.replace('</head>', credential_script + '</head>')
         
         self.send_response(200)
         self.send_header('Content-Type', 'text/html; charset=utf-8')
         self.send_header('Content-Length', str(len(html.encode('utf-8'))))
+        self._send_security_headers()
         self.end_headers()
         self.wfile.write(html.encode('utf-8'))
     
@@ -220,6 +379,7 @@ class KlaverjassenHandler(BaseHTTPRequestHandler):
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Klaverjassen Admin - Spelgeschiedenis</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
     <style>
         * {
             margin: 0;
@@ -421,6 +581,23 @@ class KlaverjassenHandler(BaseHTTPRequestHandler):
     </div>
     
     <script>
+        // Get credentials from session storage (set by server on admin page load)
+        const adminCredentials = sessionStorage.getItem('adminCredentials');
+        
+        function getAuthHeader() {
+            const creds = sessionStorage.getItem('adminCredentials');
+            if (!creds) return {};
+            return { 'Authorization': 'Basic ' + creds };
+        }
+        
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            const div = document.createElement('div');
+            div.textContent = String(text);
+            return div.innerHTML;
+        }
+        
         // Load stats on page load
         document.addEventListener('DOMContentLoaded', loadStats);
         
@@ -441,7 +618,13 @@ class KlaverjassenHandler(BaseHTTPRequestHandler):
         
         async function loadStats() {
             try {
-                const response = await fetch('/api/stats');
+                const response = await fetch('/api/stats', {
+                    headers: getAuthHeader()
+                });
+                if (response.status === 401) {
+                    window.location.href = '/admin';
+                    return;
+                }
                 const stats = await response.json();
                 displayStats(stats);
             } catch (error) {
@@ -454,27 +637,27 @@ class KlaverjassenHandler(BaseHTTPRequestHandler):
             const statsGrid = document.getElementById('stats-grid');
             statsGrid.innerHTML = `
                 <div class="stat-card">
-                    <div class="stat-number">${stats.total_games}</div>
+                    <div class="stat-number">${escapeHtml(stats.total_games)}</div>
                     <div class="stat-label">Totaal Spellen</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number">${stats.wij_wins}</div>
+                    <div class="stat-number">${escapeHtml(stats.wij_wins)}</div>
                     <div class="stat-label">Team Wij Wint</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number">${stats.zij_wins}</div>
+                    <div class="stat-number">${escapeHtml(stats.zij_wins)}</div>
                     <div class="stat-label">Team Zij Wint</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number">${stats.avg_score_wij}</div>
+                    <div class="stat-number">${escapeHtml(stats.avg_score_wij)}</div>
                     <div class="stat-label">Gem. Score Wij</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number">${stats.avg_score_zij}</div>
+                    <div class="stat-number">${escapeHtml(stats.avg_score_zij)}</div>
                     <div class="stat-label">Gem. Score Zij</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number">${stats.top_players[0] ? stats.top_players[0][1] : 0}</div>
+                    <div class="stat-number">${escapeHtml(stats.top_players[0] ? stats.top_players[0][1] : 0)}</div>
                     <div class="stat-label">Meest Actief</div>
                 </div>
             `;
@@ -482,7 +665,13 @@ class KlaverjassenHandler(BaseHTTPRequestHandler):
         
         async function loadGames() {
             try {
-                const response = await fetch('/api/games');
+                const response = await fetch('/api/games', {
+                    headers: getAuthHeader()
+                });
+                if (response.status === 401) {
+                    window.location.href = '/admin';
+                    return;
+                }
                 const games = await response.json();
                 displayGames(games);
             } catch (error) {
@@ -515,17 +704,17 @@ class KlaverjassenHandler(BaseHTTPRequestHandler):
                     <tbody>
                         ${games.map(game => `
                             <tr>
-                                <td>${formatDate(game.date)}</td>
-                                <td>${game.players_wij.join(', ')}</td>
-                                <td>${game.players_zij.join(', ')}</td>
-                                <td><strong>${game.final_score_wij}</strong></td>
-                                <td><strong>${game.final_score_zij}</strong></td>
+                                <td>${escapeHtml(formatDate(game.date))}</td>
+                                <td>${escapeHtml(game.players_wij.join(', '))}</td>
+                                <td>${escapeHtml(game.players_zij.join(', '))}</td>
+                                <td><strong>${escapeHtml(game.final_score_wij)}</strong></td>
+                                <td><strong>${escapeHtml(game.final_score_zij)}</strong></td>
                                 <td>
                                     <span class="winner-badge ${game.winner === 'Wij' ? 'winner-wij' : 'winner-zij'}">
-                                        ${game.winner}
+                                        ${escapeHtml(game.winner)}
                                     </span>
                                 </td>
-                                <td>${game.rounds.length}</td>
+                                <td>${escapeHtml(game.rounds.length)}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -549,11 +738,17 @@ class KlaverjassenHandler(BaseHTTPRequestHandler):
     
     def serve_api_games(self):
         """Serve games API endpoint"""
+        # Double-check authentication
+        if not self._check_basic_auth():
+            self._send_auth_required()
+            return
+        
         games = get_all_games()
         
         self.send_response(200)
         self.send_header('Content-Type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
+        self._send_security_headers()
+        self.send_header('Access-Control-Allow-Origin', self.headers.get('Origin', '*'))
         self.end_headers()
         self.wfile.write(json.dumps(games).encode('utf-8'))
     
@@ -563,15 +758,47 @@ class KlaverjassenHandler(BaseHTTPRequestHandler):
         
         self.send_response(200)
         self.send_header('Content-Type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
+        self._send_security_headers()
+        self.send_header('Access-Control-Allow-Origin', self.headers.get('Origin', '*'))
         self.end_headers()
         self.wfile.write(json.dumps(stats).encode('utf-8'))
     
     def handle_save_game(self):
-        """Handle saving a completed game"""
-        content_length = int(self.headers['Content-Length'])
+        """Handle saving a completed game with authentication and validation"""
+        # Check authentication
+        if not self._check_basic_auth():
+            self._send_auth_required()
+            return
+        
+        # Check Content-Length to prevent large payload attacks
+        content_length = int(self.headers.get('Content-Length', 0))
+        if content_length > 1024 * 1024:  # 1MB limit
+            self.send_error(413)  # Payload Too Large
+            return
+        
         post_data = self.rfile.read(content_length)
-        game_data = json.loads(post_data.decode('utf-8'))
+        
+        try:
+            game_data = json.loads(post_data.decode('utf-8'))
+        except json.JSONDecodeError:
+            response = {'success': False, 'error': 'Invalid JSON data'}
+            self.send_response(400)
+            self.send_header('Content-Type', 'application/json')
+            self._send_security_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps(response).encode('utf-8'))
+            return
+        
+        # Validate game data structure
+        validation_errors = self._validate_game_data(game_data)
+        if validation_errors:
+            response = {'success': False, 'error': 'Validation failed', 'details': validation_errors}
+            self.send_response(400)
+            self.send_header('Content-Type', 'application/json')
+            self._send_security_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps(response).encode('utf-8'))
+            return
         
         try:
             game_id = save_game(game_data)
@@ -581,13 +808,10 @@ class KlaverjassenHandler(BaseHTTPRequestHandler):
         
         self.send_response(200)
         self.send_header('Content-Type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
+        self._send_security_headers()
+        self.send_header('Access-Control-Allow-Origin', self.headers.get('Origin', '*'))
         self.end_headers()
         self.wfile.write(json.dumps(response).encode('utf-8'))
-    
-    def log_message(self, format, *args):
-        """Custom logging to avoid console spam"""
-        pass
 
 def main():
     """Main function to start the server"""
@@ -598,12 +822,12 @@ def main():
     print(f"✅ Database initialized: {DB_FILE}")
     
     # Start server
-    server_address = ('', 8000)
+    server_address = ('', 9876)
     httpd = HTTPServer(server_address, KlaverjassenHandler)
     
-    print("🌐 Server running at http://localhost:8000")
-    print("📊 Admin interface: http://localhost:8000/admin")
-    print("📱 Main app: http://localhost:8000")
+    print("🌐 Server running at http://localhost:9876")
+    print("📊 Admin interface: http://localhost:9876/admin")
+    print("📱 Main app: http://localhost:9876")
     print("⏹️  Press Ctrl+C to stop the server")
     
     try:

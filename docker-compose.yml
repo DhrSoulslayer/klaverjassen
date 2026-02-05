@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  klaverjassen:
+    build: .
+    container_name: klaverjassen-app
+    ports:
+      - "9876:9876"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - klaverjassen-network
+
+networks:
+  klaverjassen-network:
+    driver: bridge

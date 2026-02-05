@@ -1,3 +1,11 @@
+// Utility function to escape HTML and prevent XSS
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    const div = document.createElement('div');
+    div.textContent = String(text);
+    return div.innerHTML;
+}
+
 class KlaverjassenGame {
     constructor() {
         this.players = { wij: [], zij: [] };
@@ -120,7 +128,8 @@ class KlaverjassenGame {
         if (whoPlayed && cardPointsWij + cardPointsZij === 162) {
             const playingTeamCardPoints = whoPlayed === 'wij' ? cardPointsWij : cardPointsZij;
             if (playingTeamCardPoints < 82) {
-                natWarning = `<div class="nat-warning">⚠️ NAT: ${whoPlayed === 'wij' ? 'Team Wij' : 'Team Zij'} heeft < 82 punten! Alle punten gaan naar tegenstander.</div>`;
+                const natTeamName = whoPlayed === 'wij' ? 'Team Wij' : 'Team Zij';
+                natWarning = `<div class="nat-warning">⚠️ NAT: ${escapeHtml(natTeamName)} heeft < 82 punten! Alle punten gaan naar tegenstander.</div>`;
                 if (whoPlayed === 'wij') {
                     scoreZij = scoreWij + scoreZij;
                     scoreWij = 0;
@@ -134,20 +143,27 @@ class KlaverjassenGame {
         // Validate card points
         let validationWarning = '';
         if (cardPointsWij + cardPointsZij !== 162 && cardPointsWij > 0 && cardPointsZij > 0) {
-            validationWarning = `<div class="validation-warning">⚠️ Kaartpunten tellen op tot ${cardPointsWij + cardPointsZij}, moeten 162 zijn.</div>`;
+            validationWarning = `<div class="validation-warning">⚠️ Kaartpunten tellen op tot ${escapeHtml(cardPointsWij + cardPointsZij)}, moeten 162 zijn.</div>`;
         }
 
+        const escapedCardPointsWij = escapeHtml(cardPointsWij);
+        const escapedCardPointsZij = escapeHtml(cardPointsZij);
+        const escapedRoemWij = escapeHtml(roemWij);
+        const escapedRoemZij = escapeHtml(roemZij);
+        const escapedScoreWij = escapeHtml(scoreWij);
+        const escapedScoreZij = escapeHtml(scoreZij);
+        
         content.innerHTML = `
             ${validationWarning}
             ${natWarning}
             <div class="preview-row">
                 <div class="preview-team">
                     <strong>Team Wij:</strong>
-                    <div>Kaarten: ${cardPointsWij} + Roem: ${roemWij} + Laatste slag: ${lastTrickWinner === 'wij' ? 10 : 0} + Pit: ${pitWij ? 100 : 0} = <strong>${scoreWij}</strong></div>
+                    <div>Kaarten: ${escapedCardPointsWij} + Roem: ${escapedRoemWij} + Laatste slag: ${lastTrickWinner === 'wij' ? 10 : 0} + Pit: ${pitWij ? 100 : 0} = <strong>${escapedScoreWij}</strong></div>
                 </div>
                 <div class="preview-team">
                     <strong>Team Zij:</strong>
-                    <div>Kaarten: ${cardPointsZij} + Roem: ${roemZij} + Laatste slag: ${lastTrickWinner === 'zij' ? 10 : 0} + Pit: ${pitZij ? 100 : 0} = <strong>${scoreZij}</strong></div>
+                    <div>Kaarten: ${escapedCardPointsZij} + Roem: ${escapedRoemZij} + Laatste slag: ${lastTrickWinner === 'zij' ? 10 : 0} + Pit: ${pitZij ? 100 : 0} = <strong>${escapedScoreZij}</strong></div>
                 </div>
             </div>
         `;
@@ -575,11 +591,15 @@ class KlaverjassenGame {
 
             const wijBreakdown = breakdown.wij;
             const zijBreakdown = breakdown.zij;
+            const escapedRoundNum = escapeHtml(round.round);
+            const escapedNatWarning = round.natApplied ? '⚠️ NAT' : '';
+            const escapedWijScore = escapeHtml(round.scores.wij);
+            const escapedZijScore = escapeHtml(round.scores.zij);
 
             return `
                 <div class="round-item ${round.natApplied ? 'nat-applied' : ''}">
                     <div class="round-header">
-                        <h4>Ronde ${round.round} ${round.natApplied ? '⚠️ NAT' : ''}</h4>
+                        <h4>Ronde ${escapedRoundNum} ${escapedNatWarning}</h4>
                         <div class="round-actions">
                             <button class="btn btn-small btn-secondary" onclick="game.editRound(${index})">Bewerken</button>
                             <button class="btn btn-small btn-danger" onclick="game.removeRound(${index})">Verwijderen</button>
@@ -592,7 +612,7 @@ class KlaverjassenGame {
                             <span>Roem: ${wijBreakdown.roem}</span>
                             <span>Laatste slag: ${wijBreakdown.lastTrick}</span>
                             <span>Pit: ${wijBreakdown.pit}</span>
-                            <strong>Totaal: ${round.scores.wij}</strong>
+                            <strong>Totaal: ${escapedWijScore}</strong>
                         </div>
                         <div class="round-team-detail">
                             <strong>Team Zij:</strong>
@@ -600,7 +620,7 @@ class KlaverjassenGame {
                             <span>Roem: ${zijBreakdown.roem}</span>
                             <span>Laatste slag: ${zijBreakdown.lastTrick}</span>
                             <span>Pit: ${zijBreakdown.pit}</span>
-                            <strong>Totaal: ${round.scores.zij}</strong>
+                            <strong>Totaal: ${escapedZijScore}</strong>
                         </div>
                     </div>
                 </div>
@@ -641,11 +661,12 @@ class KlaverjassenGame {
     renderTeam(teamName) {
         const container = document.getElementById(`team${teamName.charAt(0).toUpperCase() + teamName.slice(1)}Players`);
         const players = this.players[teamName];
+        const escapedTeamName = teamName === 'wij' ? 'Wij' : 'Zij';
         
         if (players.length === 0) {
             container.innerHTML = `
                 <div class="team-players empty">
-                    <p>Nog geen spelers in team ${teamName === 'wij' ? 'Wij' : 'Zij'}</p>
+                    <p>Nog geen spelers in team ${escapedTeamName}</p>
                     <p class="team-requirement">Minimaal 2 spelers vereist</p>
                 </div>
             `;
@@ -655,23 +676,27 @@ class KlaverjassenGame {
         if (players.length < 2) {
             container.innerHTML = `
                 <div class="team-players incomplete">
-                    ${players.map(player => `
+                    ${players.map(player => {
+                        const escapedPlayerName = escapeHtml(player.name);
+                        const escapedTotal = escapeHtml(player.total);
+                        const escapedScores = player.scores.map(score => 
+                            `<span class="score-chip ${score < 0 ? 'negative' : ''}">${escapeHtml(score)}</span>`
+                        ).join('');
+                        return `
                         <div class="player-card team-${teamName}">
                             <div class="player-header">
-                                <div class="player-name">${player.name}</div>
-                                <div class="player-total">${player.total}</div>
+                                <div class="player-name">${escapedPlayerName}</div>
+                                <div class="player-total">${escapedTotal}</div>
                             </div>
                             <div class="player-scores">
-                                ${player.scores.map(score => `
-                                    <span class="score-chip ${score < 0 ? 'negative' : ''}">${score}</span>
-                                `).join('')}
+                                ${escapedScores}
                             </div>
                             <button class="btn btn-secondary" style="margin-top: 10px; width: 100%; font-size: 0.9rem;" 
-                                    onclick="game.removePlayer('${player.name}', '${teamName}')">
+                                    onclick="game.removePlayer('${escapedPlayerName.replace(/'/g, "\\'")}', '${teamName}')">
                                 Verwijderen
                             </button>
                         </div>
-                    `).join('')}
+                    `}).join('')}
                     <div class="team-status">
                         <p class="team-requirement">${players.length}/2 spelers - Voeg nog ${2 - players.length} speler(s) toe</p>
                     </div>
@@ -683,23 +708,27 @@ class KlaverjassenGame {
         if (players.length > 2) {
             container.innerHTML = `
                 <div class="team-players overflow">
-                    ${players.map(player => `
+                    ${players.map(player => {
+                        const escapedPlayerName = escapeHtml(player.name);
+                        const escapedTotal = escapeHtml(player.total);
+                        const escapedScores = player.scores.map(score => 
+                            `<span class="score-chip ${score < 0 ? 'negative' : ''}">${escapeHtml(score)}</span>`
+                        ).join('');
+                        return `
                         <div class="player-card team-${teamName}">
                             <div class="player-header">
-                                <div class="player-name">${player.name}</div>
-                                <div class="player-total">${player.total}</div>
+                                <div class="player-name">${escapedPlayerName}</div>
+                                <div class="player-total">${escapedTotal}</div>
                             </div>
                             <div class="player-scores">
-                                ${player.scores.map(score => `
-                                    <span class="score-chip ${score < 0 ? 'negative' : ''}">${score}</span>
-                                `).join('')}
+                                ${escapedScores}
                             </div>
                             <button class="btn btn-secondary" style="margin-top: 10px; width: 100%; font-size: 0.9rem;" 
-                                    onclick="game.removePlayer('${player.name}', '${teamName}')">
+                                    onclick="game.removePlayer('${escapedPlayerName.replace(/'/g, "\\'")}', '${teamName}')">
                                 Verwijderen
                             </button>
                         </div>
-                    `).join('')}
+                    `}).join('')}
                     <div class="team-status error">
                         <p class="team-requirement error">${players.length}/2 spelers - TE VEEL SPELERS! Verwijder ${players.length - 2} speler(s)</p>
                     </div>
@@ -708,23 +737,27 @@ class KlaverjassenGame {
             return;
         }
         
-        container.innerHTML = players.map(player => `
+        container.innerHTML = players.map(player => {
+            const escapedPlayerName = escapeHtml(player.name);
+            const escapedTotal = escapeHtml(player.total);
+            const escapedScores = player.scores.map(score => 
+                `<span class="score-chip ${score < 0 ? 'negative' : ''}">${escapeHtml(score)}</span>`
+            ).join('');
+            return `
             <div class="player-card team-${teamName}">
                 <div class="player-header">
-                    <div class="player-name">${player.name}</div>
-                    <div class="player-total">${player.total}</div>
+                    <div class="player-name">${escapedPlayerName}</div>
+                    <div class="player-total">${escapedTotal}</div>
                 </div>
                 <div class="player-scores">
-                    ${player.scores.map(score => `
-                        <span class="score-chip ${score < 0 ? 'negative' : ''}">${score}</span>
-                    `).join('')}
+                    ${escapedScores}
                 </div>
                 <button class="btn btn-secondary" style="margin-top: 10px; width: 100%; font-size: 0.9rem;" 
-                        onclick="game.removePlayer('${player.name}', '${teamName}')">
+                        onclick="game.removePlayer('${escapedPlayerName.replace(/'/g, "\\'")}', '${teamName}')">
                     Verwijderen
                 </button>
             </div>
-        `).join('');
+        `}).join('');
     }
 
     updateAddRoundButton() {
@@ -780,34 +813,37 @@ class KlaverjassenGame {
         const winner = teamTotals.wij > teamTotals.zij ? 'wij' : 
                       teamTotals.zij > teamTotals.wij ? 'zij' : 'tie';
         
+        const escapedWinnerMessage = winner === 'tie' ? 'Gelijkspel!' : `Team ${winner === 'wij' ? 'Wij' : 'Zij'} wint!`;
+        const escapedWinnerEmoji = winner === 'tie' ? '🤝' : '🏐';
+        
         content.innerHTML = `
             <div class="summary-row">
                 <span>Rondes gespeeld:</span>
-                <span>${this.rounds.length}</span>
+                <span>${escapeHtml(this.rounds.length)}</span>
             </div>
             <div class="summary-breakdown">
                 <div class="breakdown-team ${winner === 'wij' ? 'winner' : ''}">
                     <strong>Team Wij:</strong>
                     <div class="breakdown-details">
-                        <span>Kaarten: ${breakdown.wij.cardPoints}</span>
-                        <span>Roem: ${breakdown.wij.roem}</span>
-                        <span>Bonussen: ${breakdown.wij.bonuses}</span>
+                        <span>Kaarten: ${escapeHtml(breakdown.wij.cardPoints)}</span>
+                        <span>Roem: ${escapeHtml(breakdown.wij.roem)}</span>
+                        <span>Bonussen: ${escapeHtml(breakdown.wij.bonuses)}</span>
                     </div>
-                    <div class="breakdown-total">Totaal: ${teamTotals.wij}</div>
+                    <div class="breakdown-total">Totaal: ${escapeHtml(teamTotals.wij)}</div>
                 </div>
                 <div class="breakdown-team ${winner === 'zij' ? 'winner' : ''}">
                     <strong>Team Zij:</strong>
                     <div class="breakdown-details">
-                        <span>Kaarten: ${breakdown.zij.cardPoints}</span>
-                        <span>Roem: ${breakdown.zij.roem}</span>
-                        <span>Bonussen: ${breakdown.zij.bonuses}</span>
+                        <span>Kaarten: ${escapeHtml(breakdown.zij.cardPoints)}</span>
+                        <span>Roem: ${escapeHtml(breakdown.zij.roem)}</span>
+                        <span>Bonussen: ${escapeHtml(breakdown.zij.bonuses)}</span>
                     </div>
-                    <div class="breakdown-total">Totaal: ${teamTotals.zij}</div>
+                    <div class="breakdown-total">Totaal: ${escapeHtml(teamTotals.zij)}</div>
                 </div>
             </div>
             <div class="summary-row ${winner === 'tie' ? 'winner' : ''}">
-                <span>${winner === 'tie' ? 'Gelijkspel!' : `Team ${winner === 'wij' ? 'Wij' : 'Zij'} wint!`}</span>
-                <span>${winner === 'tie' ? '🤝' : '🏆'}</span>
+                <span>${escapedWinnerMessage}</span>
+                <span>${escapedWinnerEmoji}</span>
             </div>
         `;
     }
@@ -1095,13 +1131,26 @@ class KlaverjassenGame {
                 start_time: this.startTime
             };
 
+            // Get credentials from localStorage (set by user in admin section)
+            const credentials = localStorage.getItem('serverCredentials');
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            
+            if (credentials) {
+                headers['Authorization'] = 'Basic ' + credentials;
+            }
+
             const response = await fetch('/api/save-game', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: headers,
                 body: JSON.stringify(gameData)
             });
+
+            if (response.status === 401) {
+                console.error('Authentication required to save game');
+                return false;
+            }
 
             const result = await response.json();
             
