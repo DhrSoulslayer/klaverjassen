@@ -74,7 +74,7 @@ class KlaverjassenGame {
 
     setupScorePreview() {
         const inputs = [
-            'cardPointsWij', 'cardPointsZij', 'whoPlayed', 'trumpSuit',
+            'cardPointsWij', 'cardPointsZij', 'whoPlayed',
             'lastTrickWinner', 'pitWij', 'pitZij',
             'roemWijDriekaart', 'roemWijVierkaart', 'roemWijStuk', 'roemWijVierGelijken', 'roemWijVierBoeren',
             'roemZijDriekaart', 'roemZijVierkaart', 'roemZijStuk', 'roemZijVierGelijken', 'roemZijVierBoeren'
@@ -327,7 +327,6 @@ class KlaverjassenGame {
 
         // Get input values
         const whoPlayed = document.getElementById('whoPlayed').value;
-        const trumpSuit = document.getElementById('trumpSuit').value;
         const cardPointsWij = parseInt(document.getElementById('cardPointsWij').value) || 0;
         // Automatically calculate team zij points
         const cardPointsZij = 162 - cardPointsWij;
@@ -392,7 +391,6 @@ class KlaverjassenGame {
         const round = {
             round: this.rounds.length + 1,
             whoPlayed: whoPlayed || null,
-            trumpSuit: trumpSuit || null,
             breakdown: {
                 wij: {
                     cardPoints: cardPointsWij,
@@ -452,7 +450,6 @@ class KlaverjassenGame {
 
     clearRoundForm() {
         document.getElementById('whoPlayed').value = '';
-        document.getElementById('trumpSuit').value = '';
         document.getElementById('cardPointsWij').value = '';
         document.getElementById('cardPointsZij').value = '';
         document.getElementById('lastTrickWinner').value = '';
@@ -494,7 +491,6 @@ class KlaverjassenGame {
 
         // Fill form with round data
         document.getElementById('whoPlayed').value = round.whoPlayed || '';
-        document.getElementById('trumpSuit').value = round.trumpSuit || '';
         
         if (round.breakdown) {
             document.getElementById('cardPointsWij').value = round.breakdown.wij.cardPoints || '';
@@ -583,7 +579,7 @@ class KlaverjassenGame {
             return `
                 <div class="round-item ${round.natApplied ? 'nat-applied' : ''}">
                     <div class="round-header">
-                        <h4>Ronde ${round.round} ${round.trumpSuit ? `(${round.trumpSuit})` : ''} ${round.natApplied ? '⚠️ NAT' : ''}</h4>
+                        <h4>Ronde ${round.round} ${round.natApplied ? '⚠️ NAT' : ''}</h4>
                         <div class="round-actions">
                             <button class="btn btn-small btn-secondary" onclick="game.editRound(${index})">Bewerken</button>
                             <button class="btn btn-small btn-danger" onclick="game.removeRound(${index})">Verwijderen</button>
