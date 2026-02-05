@@ -360,9 +360,9 @@ header {
 }
 
 .form-group label {
-    font-weight: 600;
-    color: #333;
-    font-size: 0.8rem;
+    font-weight: 700;
+    color: #ffffff;
+    font-size: 1rem;
 }
 
 .form-select {
