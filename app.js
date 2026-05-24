@@ -6,7 +6,7 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// 152 kaartpunten + 10 laatste slag = 162 rondepunten totaal
+// 152 kaartpunten (+10 laatste slag aan winnaar) = 162 rondepunten totaal
 const CARD_POINTS_TOTAL = 152;
 const NAT_THRESHOLD = 82;
 
