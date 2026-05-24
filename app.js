@@ -19,6 +19,10 @@ class KlaverjassenGame {
         this.selectedTeam = 'wij';
         this.startTime = new Date().toISOString();
         this.gameStarted = false;
+        this.natAnimationTimeout = null;
+        this.natOverlay = null;
+        this.natParticlesContainer = null;
+        this.natRainFallbackActive = false;
         
         this.bindEvents();
         this.loadGameState();
@@ -513,6 +517,7 @@ class KlaverjassenGame {
         // Show success message
         if (natApplied) {
             this.showMessage(`Ronde toegevoegd! ⚠️ NAT toegepast - ${whoPlayed === 'wij' ? 'Team Wij' : 'Team Zij'} had ≤ ${NAT_MAX_TRICK_POINTS} slagpunten!`, 'warning');
+            this.showNatRainAnimation();
         } else {
             this.showRoundAddedMessage();
         }
@@ -1021,7 +1026,171 @@ class KlaverjassenGame {
         }, 3200);
     }
 
+    showNatRainAnimation() {
+        this.clearNatRainAnimation();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'nat-rain-overlay';
+
+        const rainLayer = document.createElement('div');
+        rainLayer.className = 'nat-rain-layer';
+        rainLayer.id = `natRainLayer-${Date.now()}`;
+
+        const wiper = document.createElement('div');
+        wiper.className = 'nat-wiper';
+
+        overlay.appendChild(rainLayer);
+        overlay.appendChild(wiper);
+        document.body.appendChild(overlay);
+
+        this.natOverlay = overlay;
+        const particlesStarted = this.startNatRainParticles(rainLayer.id);
+        if (!particlesStarted) {
+            this.startNatRainFallback(rainLayer);
+        }
+
+        this.natAnimationTimeout = setTimeout(() => {
+            this.playNatWipeAnimation();
+        }, 5000);
+    }
+
+    startNatRainParticles(layerId) {
+        const particlesEngine = window.tsParticles;
+        if (!particlesEngine || typeof particlesEngine.load !== 'function') {
+            return false;
+        }
+
+        const options = {
+            background: { color: 'transparent' },
+            fullScreen: { enable: false },
+            fpsLimit: 60,
+            particles: {
+                number: {
+                    value: 0
+                },
+                color: {
+                    value: ['#b3e5fc', '#81d4fa', '#4fc3f7']
+                },
+                shape: {
+                    type: 'circle'
+                },
+                opacity: {
+                    value: { min: 0.25, max: 0.65 }
+                },
+                size: {
+                    value: { min: 1.5, max: 4 }
+                },
+                move: {
+                    direction: 'bottom',
+                    enable: true,
+                    outModes: {
+                        default: 'out'
+                    },
+                    speed: { min: 12, max: 26 },
+                    straight: true
+                }
+            },
+            emitters: {
+                direction: 'bottom',
+                life: {
+                    count: 0
+                },
+                position: {
+                    x: 50,
+                    y: 0
+                },
+                rate: {
+                    quantity: 28,
+                    delay: 0.08
+                },
+                size: {
+                    width: 100,
+                    height: 0
+                }
+            },
+            detectRetina: true
+        };
+
+        let loadPromise;
+        try {
+            loadPromise = particlesEngine.load(layerId, options);
+        } catch (error) {
+            loadPromise = particlesEngine.load({ id: layerId, options });
+        }
+
+        Promise.resolve(loadPromise)
+            .then(container => {
+                this.natParticlesContainer = container;
+            })
+            .catch(() => {
+                this.natParticlesContainer = null;
+                if (this.natOverlay) {
+                    const rainLayer = this.natOverlay.querySelector('.nat-rain-layer');
+                    if (rainLayer && !this.natRainFallbackActive) {
+                        this.startNatRainFallback(rainLayer);
+                    }
+                }
+            });
+
+        return true;
+    }
+
+    startNatRainFallback(rainLayer) {
+        this.natRainFallbackActive = true;
+        const dropCount = window.innerWidth < 768 ? 42 : 70;
+
+        for (let i = 0; i < dropCount; i++) {
+            const drop = document.createElement('span');
+            drop.className = 'nat-fallback-drop';
+            drop.style.left = `${Math.random() * 100}%`;
+            drop.style.animationDelay = `${Math.random() * 1.2}s`;
+            drop.style.animationDuration = `${0.65 + Math.random() * 0.55}s`;
+            drop.style.opacity = `${0.3 + Math.random() * 0.45}`;
+            rainLayer.appendChild(drop);
+        }
+    }
+
+    playNatWipeAnimation() {
+        if (!this.natOverlay) return;
+
+        const cleanup = () => this.clearNatRainAnimation();
+        const wiper = this.natOverlay.querySelector('.nat-wiper');
+
+        if (window.gsap && wiper) {
+            const timeline = window.gsap.timeline({ onComplete: cleanup });
+            timeline
+                .set(wiper, { opacity: 1, xPercent: -180, rotation: -16 })
+                .to(wiper, { duration: 0.9, xPercent: 120, ease: 'power2.inOut' })
+                .to(wiper, { duration: 0.45, xPercent: 210, opacity: 0, ease: 'power1.out' })
+                .to(this.natOverlay, { duration: 0.25, opacity: 0 }, '<');
+            return;
+        }
+
+        this.natOverlay.classList.add('nat-rain-overlay--wipe');
+        setTimeout(cleanup, 1200);
+    }
+
+    clearNatRainAnimation() {
+        if (this.natAnimationTimeout) {
+            clearTimeout(this.natAnimationTimeout);
+            this.natAnimationTimeout = null;
+        }
+
+        if (this.natParticlesContainer && typeof this.natParticlesContainer.destroy === 'function') {
+            this.natParticlesContainer.destroy();
+            this.natParticlesContainer = null;
+        }
+
+        if (this.natOverlay && document.body.contains(this.natOverlay)) {
+            document.body.removeChild(this.natOverlay);
+        }
+        this.natOverlay = null;
+        this.natRainFallbackActive = false;
+    }
+
     async newGame() {
+        this.clearNatRainAnimation();
+
         // Save current game to database if there are rounds
         if (this.rounds.length > 0) {
             await this.saveGameToDatabase();
@@ -1432,6 +1601,85 @@ style.textContent = `
     @media (max-width: 768px) {
         .fireworks-winner-name {
             font-size: 1.4rem;
+        }
+    }
+
+    .nat-rain-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 1300;
+        pointer-events: none;
+        overflow: hidden;
+        background: radial-gradient(circle at top, rgba(90, 160, 255, 0.25), rgba(10, 25, 50, 0.58));
+    }
+
+    .nat-rain-layer {
+        position: absolute;
+        inset: 0;
+    }
+
+    .nat-fallback-drop {
+        position: absolute;
+        top: -14px;
+        width: 2px;
+        height: 18px;
+        border-radius: 999px;
+        background: linear-gradient(to bottom, rgba(255, 255, 255, 0.05), rgba(196, 228, 255, 0.92));
+        animation: natFallbackDrop linear infinite;
+    }
+
+    @keyframes natFallbackDrop {
+        from {
+            transform: translateY(-5vh);
+        }
+        to {
+            transform: translateY(110vh);
+        }
+    }
+
+    .nat-wiper {
+        position: absolute;
+        left: 0;
+        top: -8vh;
+        width: 220vw;
+        height: 26vh;
+        opacity: 0;
+        transform: translateX(-160%);
+        border-top: 5px solid rgba(228, 235, 241, 0.95);
+        border-bottom: 3px solid rgba(112, 122, 132, 0.9);
+        background: linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0.22) 0%,
+            rgba(255, 255, 255, 0.75) 45%,
+            rgba(255, 255, 255, 0.08) 100%
+        );
+        box-shadow: 0 0 16px rgba(255, 255, 255, 0.45);
+    }
+
+    .nat-rain-overlay--wipe .nat-wiper {
+        animation: natWiperSweep 1.1s ease-in-out forwards;
+    }
+
+    @keyframes natWiperSweep {
+        0% {
+            opacity: 1;
+            transform: translateX(-160%) rotate(-16deg);
+        }
+        70% {
+            opacity: 1;
+            transform: translateX(110%) rotate(-16deg);
+        }
+        100% {
+            opacity: 0;
+            transform: translateX(205%) rotate(-16deg);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .nat-wiper {
+            width: 320vw;
+            top: -6vh;
+            height: 30vh;
         }
     }
 `;
