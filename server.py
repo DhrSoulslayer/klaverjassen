@@ -171,7 +171,7 @@ class KlaverjassenHandler(BaseHTTPRequestHandler):
     def _send_security_headers(self):
         """Send security headers with all responses"""
         # Content Security Policy - only allow same origin
-        self.send_header('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' https://cdn.jsdelivr.net")
+        self.send_header('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' https://cdn.jsdelivr.net/npm/tsparticles@4/tsparticles.bundle.min.js https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js")
         # Prevent clickjacking
         self.send_header('X-Frame-Options', 'SAMEORIGIN')
         # Prevent MIME type sniffing
@@ -379,7 +379,7 @@ class KlaverjassenHandler(BaseHTTPRequestHandler):
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Klaverjassen Admin - Spelgeschiedenis</title>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' https://cdn.jsdelivr.net">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' https://cdn.jsdelivr.net/npm/tsparticles@4/tsparticles.bundle.min.js https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js">
     <style>
         * {
             margin: 0;
