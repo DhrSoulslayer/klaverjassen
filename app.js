@@ -8,7 +8,7 @@ function escapeHtml(text) {
 
 // 152 kaartpunten (+10 laatste slag aan winnaar) = 162 rondepunten totaal
 const CARD_POINTS_TOTAL = 152;
-const NAT_THRESHOLD = 82;
+const NAT_MAX_TRICK_POINTS = 81;
 
 class KlaverjassenGame {
     constructor() {
@@ -148,9 +148,9 @@ class KlaverjassenGame {
             const playingTeamCardPoints = whoPlayed === 'wij' ? cardPointsWij : cardPointsZij;
             const playingTeamLastTrick = lastTrickWinner === whoPlayed ? 10 : 0;
             const playingTeamTrickPoints = playingTeamCardPoints + playingTeamLastTrick;
-            if (playingTeamTrickPoints <= NAT_THRESHOLD - 1) {
+            if (playingTeamTrickPoints <= NAT_MAX_TRICK_POINTS) {
                 const natTeamName = whoPlayed === 'wij' ? 'Team Wij' : 'Team Zij';
-                natWarning = `<div class="nat-warning">⚠️ NAT: ${escapeHtml(natTeamName)} heeft ≤ ${NAT_THRESHOLD - 1} slagpunten! Alle punten gaan naar tegenstander.</div>`;
+                natWarning = `<div class="nat-warning">⚠️ NAT: ${escapeHtml(natTeamName)} heeft ≤ ${NAT_MAX_TRICK_POINTS} slagpunten! Alle punten gaan naar tegenstander.</div>`;
                 if (whoPlayed === 'wij') {
                     scoreZij = scoreWij + scoreZij;
                     scoreWij = 0;
@@ -413,7 +413,7 @@ class KlaverjassenGame {
             const playingTeamCardPoints = whoPlayed === 'wij' ? cardPointsWij : cardPointsZij;
             const playingTeamLastTrick = lastTrickWinner === whoPlayed ? 10 : 0;
             const playingTeamTrickPoints = playingTeamCardPoints + playingTeamLastTrick;
-            if (playingTeamTrickPoints <= NAT_THRESHOLD - 1) {
+            if (playingTeamTrickPoints <= NAT_MAX_TRICK_POINTS) {
                 // NAT: All points go to opponent
                 natApplied = true;
                 if (whoPlayed === 'wij') {
@@ -468,7 +468,7 @@ class KlaverjassenGame {
         
         // Show success message
         if (natApplied) {
-            this.showMessage(`Ronde toegevoegd! ⚠️ NAT toegepast - ${whoPlayed === 'wij' ? 'Team Wij' : 'Team Zij'} had ≤ ${NAT_THRESHOLD - 1} slagpunten!`, 'warning');
+            this.showMessage(`Ronde toegevoegd! ⚠️ NAT toegepast - ${whoPlayed === 'wij' ? 'Team Wij' : 'Team Zij'} had ≤ ${NAT_MAX_TRICK_POINTS} slagpunten!`, 'warning');
         } else {
             this.showRoundAddedMessage();
         }
