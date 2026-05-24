@@ -99,6 +99,26 @@ class KlaverjassenGame {
                 this.updateScorePreview();
             });
         });
+
+        const roundsListContent = document.getElementById('roundsListContent');
+        if (roundsListContent) {
+            roundsListContent.addEventListener('click', (event) => {
+                const actionButton = event.target.closest('[data-round-action]');
+                if (!actionButton) return;
+
+                const action = actionButton.dataset.roundAction;
+                const roundIndex = parseInt(actionButton.dataset.roundIndex, 10);
+                if (Number.isNaN(roundIndex)) return;
+
+                if (action === 'replay') {
+                    this.replayRound(roundIndex);
+                } else if (action === 'edit') {
+                    this.editRound(roundIndex);
+                } else if (action === 'remove') {
+                    this.removeRound(roundIndex);
+                }
+            });
+        }
     }
 
     setupScorePreview() {
@@ -540,13 +560,16 @@ class KlaverjassenGame {
         document.getElementById('scorePreview').style.display = 'none';
     }
 
+    renumberRounds() {
+        this.rounds.forEach((round, index) => {
+            round.round = index + 1;
+        });
+    }
+
     removeRound(roundIndex) {
         if (confirm(`Weet je zeker dat je ronde ${roundIndex + 1} wilt verwijderen?`)) {
             this.rounds.splice(roundIndex, 1);
-            // Renumber rounds
-            this.rounds.forEach((round, index) => {
-                round.round = index + 1;
-            });
+            this.renumberRounds();
             this.recalculateScores();
             this.saveGameState();
             this.updateGameSummary();
@@ -556,7 +579,7 @@ class KlaverjassenGame {
         }
     }
 
-    editRound(roundIndex) {
+    loadRoundForReplay(roundIndex, message) {
         const round = this.rounds[roundIndex];
         if (!round) return;
 
@@ -591,6 +614,7 @@ class KlaverjassenGame {
 
         // Remove the round (will be re-added when form is submitted)
         this.rounds.splice(roundIndex, 1);
+        this.renumberRounds();
         this.recalculateScores();
         this.saveGameState();
         this.updateGameSummary();
@@ -599,7 +623,20 @@ class KlaverjassenGame {
 
         // Scroll to form
         document.querySelector('.round-input').scrollIntoView({ behavior: 'smooth' });
-        this.showMessage('Ronde geladen voor bewerking. Pas aan en klik op "Ronde Toevoegen".', 'info');
+        this.showMessage(message, 'info');
+    }
+
+    editRound(roundIndex) {
+        this.loadRoundForReplay(roundIndex, 'Ronde geladen voor bewerking. Pas aan en klik op "Ronde Toevoegen".');
+    }
+
+    replayRound(roundIndex) {
+        const round = this.rounds[roundIndex];
+        if (!round) return;
+
+        if (confirm(`Ronde ${round.round} opnieuw spelen? De huidige score van deze ronde wordt verwijderd.`)) {
+            this.loadRoundForReplay(roundIndex, 'Ronde klaar om opnieuw te spelen. Pas aan en klik op "Ronde Toevoegen".');
+        }
     }
 
     renderRoundsList() {
@@ -631,8 +668,9 @@ class KlaverjassenGame {
                     <div class="round-header">
                         <h4>Ronde ${escapedRoundNum} ${escapedNatWarning}</h4>
                         <div class="round-actions">
-                            <button class="btn btn-small btn-secondary" onclick="game.editRound(${index})">Bewerken</button>
-                            <button class="btn btn-small btn-danger" onclick="game.removeRound(${index})">Verwijderen</button>
+                            <button class="btn btn-small btn-primary" data-round-action="replay" data-round-index="${index}">Overspelen</button>
+                            <button class="btn btn-small btn-secondary" data-round-action="edit" data-round-index="${index}">Bewerken</button>
+                            <button class="btn btn-small btn-danger" data-round-action="remove" data-round-index="${index}">Verwijderen</button>
                         </div>
                     </div>
                     <div class="round-details">
@@ -680,6 +718,7 @@ class KlaverjassenGame {
         
         // Update team stand after recalculating scores
         this.updateGameSummary();
+        this.renderTeams();
     }
 
     renderTeams() {
@@ -833,6 +872,7 @@ class KlaverjassenGame {
         
         if (this.rounds.length === 0) {
             summary.style.display = 'none';
+            this.updateTeamStand(0, 0);
             return;
         }
         
