@@ -149,6 +149,10 @@ class KlaverjassenGame {
         const pitWij = document.getElementById('pitWij').checked;
         const pitZij = document.getElementById('pitZij').checked;
         const whoPlayed = document.getElementById('whoPlayed').value;
+        const autoPitWij = cardPointsWij === CARD_POINTS_TOTAL && cardPointsZij === 0;
+        const autoPitZij = cardPointsZij === CARD_POINTS_TOTAL && cardPointsWij === 0;
+        const pitWijApplied = pitWij || autoPitWij;
+        const pitZijApplied = pitZij || autoPitZij;
 
         if (cardPointsWij === 0 && cardPointsZij === 0 && roemWij === 0 && roemZij === 0) {
             preview.style.display = 'none';
@@ -160,8 +164,8 @@ class KlaverjassenGame {
 
         if (lastTrickWinner === 'wij') scoreWij += 10;
         if (lastTrickWinner === 'zij') scoreZij += 10;
-        if (pitWij) scoreWij += 100;
-        if (pitZij) scoreZij += 100;
+        if (pitWijApplied) scoreWij += 100;
+        if (pitZijApplied) scoreZij += 100;
 
         // Check for nat (vragende partij is nat bij 81-81, dus <= 81 slagpunten)
         let natWarning = '';
@@ -201,11 +205,11 @@ class KlaverjassenGame {
             <div class="preview-row">
                 <div class="preview-team">
                     <strong>Team Wij:</strong>
-                    <div>Kaarten: ${escapedCardPointsWij} + Roem: ${escapedRoemWij} + Laatste slag: ${lastTrickWinner === 'wij' ? 10 : 0} + Pit: ${pitWij ? 100 : 0} = <strong>${escapedScoreWij}</strong></div>
+                    <div>Kaarten: ${escapedCardPointsWij} + Roem: ${escapedRoemWij} + Laatste slag: ${lastTrickWinner === 'wij' ? 10 : 0} + Pit: ${pitWijApplied ? 100 : 0} = <strong>${escapedScoreWij}</strong></div>
                 </div>
                 <div class="preview-team">
                     <strong>Team Zij:</strong>
-                    <div>Kaarten: ${escapedCardPointsZij} + Roem: ${escapedRoemZij} + Laatste slag: ${lastTrickWinner === 'zij' ? 10 : 0} + Pit: ${pitZij ? 100 : 0} = <strong>${escapedScoreZij}</strong></div>
+                    <div>Kaarten: ${escapedCardPointsZij} + Roem: ${escapedRoemZij} + Laatste slag: ${lastTrickWinner === 'zij' ? 10 : 0} + Pit: ${pitZijApplied ? 100 : 0} = <strong>${escapedScoreZij}</strong></div>
                 </div>
             </div>
         `;
@@ -415,6 +419,10 @@ class KlaverjassenGame {
         const lastTrickWinner = document.getElementById('lastTrickWinner').value;
         const pitWij = document.getElementById('pitWij').checked;
         const pitZij = document.getElementById('pitZij').checked;
+        const autoPitWij = cardPointsWij === CARD_POINTS_TOTAL && cardPointsZij === 0;
+        const autoPitZij = cardPointsZij === CARD_POINTS_TOTAL && cardPointsWij === 0;
+        const pitWijApplied = pitWij || autoPitWij;
+        const pitZijApplied = pitZij || autoPitZij;
 
         // Calculate base scores (card points + roem)
         let scoreWij = cardPointsWij + roemWij;
@@ -428,10 +436,10 @@ class KlaverjassenGame {
         }
 
         // Add pit bonus
-        if (pitWij) {
+        if (pitWijApplied) {
             scoreWij += 100;
         }
-        if (pitZij) {
+        if (pitZijApplied) {
             scoreZij += 100;
         }
 
@@ -463,14 +471,14 @@ class KlaverjassenGame {
                     cardPoints: cardPointsWij,
                     roem: roemWij,
                     lastTrick: lastTrickWinner === 'wij' ? 10 : 0,
-                    pit: pitWij ? 100 : 0,
+                    pit: pitWijApplied ? 100 : 0,
                     total: scoreWij
                 },
                 zij: {
                     cardPoints: cardPointsZij,
                     roem: roemZij,
                     lastTrick: lastTrickWinner === 'zij' ? 10 : 0,
-                    pit: pitZij ? 100 : 0,
+                    pit: pitZijApplied ? 100 : 0,
                     total: scoreZij
                 }
             },
@@ -1120,8 +1128,14 @@ class KlaverjassenGame {
                 const wijPoints = parseInt(cardPointsWij.value) || 0;
                 const zijPoints = CARD_POINTS_TOTAL - wijPoints;
                 const cardPointsZij = document.getElementById('cardPointsZij');
+                const pitWijCheckbox = document.getElementById('pitWij');
+                const pitZijCheckbox = document.getElementById('pitZij');
                 if (cardPointsZij) {
                     cardPointsZij.value = zijPoints >= 0 && zijPoints <= CARD_POINTS_TOTAL ? zijPoints : '';
+                    if (pitWijCheckbox && pitZijCheckbox) {
+                        pitWijCheckbox.checked = wijPoints === CARD_POINTS_TOTAL && zijPoints === 0;
+                        pitZijCheckbox.checked = zijPoints === CARD_POINTS_TOTAL && wijPoints === 0;
+                    }
                     // Trigger preview update
                     this.updateScorePreview();
                 }
