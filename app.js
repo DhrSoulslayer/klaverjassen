@@ -10,6 +10,14 @@ function escapeHtml(text) {
 const CARD_POINTS_TOTAL = 152;
 const NAT_MAX_TRICK_POINTS = 81;
 const WINNING_SCORE = 1600;
+const NAT_RAIN_DURATION_MS = 5000;
+const NAT_FALLBACK_DROP_COUNT_MOBILE = 42;
+const NAT_FALLBACK_DROP_COUNT_DESKTOP = 70;
+const NAT_FALLBACK_DROP_DELAY_MAX = 1.2;
+const NAT_FALLBACK_DROP_DURATION_BASE = 0.65;
+const NAT_FALLBACK_DROP_DURATION_VARIATION = 0.55;
+const NAT_FALLBACK_DROP_OPACITY_BASE = 0.3;
+const NAT_FALLBACK_DROP_OPACITY_VARIATION = 0.45;
 
 class KlaverjassenGame {
     constructor() {
@@ -23,6 +31,7 @@ class KlaverjassenGame {
         this.natOverlay = null;
         this.natParticlesContainer = null;
         this.natRainFallbackActive = false;
+        this.natAnimationCounter = 0;
         
         this.bindEvents();
         this.loadGameState();
@@ -1034,7 +1043,8 @@ class KlaverjassenGame {
 
         const rainLayer = document.createElement('div');
         rainLayer.className = 'nat-rain-layer';
-        rainLayer.id = `natRainLayer-${Date.now()}`;
+        this.natAnimationCounter += 1;
+        rainLayer.id = `natRainLayer-${this.natAnimationCounter}`;
 
         const wiper = document.createElement('div');
         wiper.className = 'nat-wiper';
@@ -1051,7 +1061,7 @@ class KlaverjassenGame {
 
         this.natAnimationTimeout = setTimeout(() => {
             this.playNatWipeAnimation();
-        }, 5000);
+        }, NAT_RAIN_DURATION_MS);
     }
 
     startNatRainParticles(layerId) {
@@ -1115,6 +1125,7 @@ class KlaverjassenGame {
         try {
             loadPromise = particlesEngine.load(layerId, options);
         } catch (error) {
+            console.warn('NAT rain fallback: particles load signature failed, retrying with object signature.', error);
             loadPromise = particlesEngine.load({ id: layerId, options });
         }
 
@@ -1137,15 +1148,15 @@ class KlaverjassenGame {
 
     startNatRainFallback(rainLayer) {
         this.natRainFallbackActive = true;
-        const dropCount = window.innerWidth < 768 ? 42 : 70;
+        const dropCount = window.innerWidth < 768 ? NAT_FALLBACK_DROP_COUNT_MOBILE : NAT_FALLBACK_DROP_COUNT_DESKTOP;
 
         for (let i = 0; i < dropCount; i++) {
             const drop = document.createElement('span');
             drop.className = 'nat-fallback-drop';
             drop.style.left = `${Math.random() * 100}%`;
-            drop.style.animationDelay = `${Math.random() * 1.2}s`;
-            drop.style.animationDuration = `${0.65 + Math.random() * 0.55}s`;
-            drop.style.opacity = `${0.3 + Math.random() * 0.45}`;
+            drop.style.animationDelay = `${Math.random() * NAT_FALLBACK_DROP_DELAY_MAX}s`;
+            drop.style.animationDuration = `${NAT_FALLBACK_DROP_DURATION_BASE + Math.random() * NAT_FALLBACK_DROP_DURATION_VARIATION}s`;
+            drop.style.opacity = `${NAT_FALLBACK_DROP_OPACITY_BASE + Math.random() * NAT_FALLBACK_DROP_OPACITY_VARIATION}`;
             rainLayer.appendChild(drop);
         }
     }
@@ -1176,6 +1187,7 @@ class KlaverjassenGame {
             this.natAnimationTimeout = null;
         }
 
+        // Defensive check keeps cleanup compatible across tsParticles container versions.
         if (this.natParticlesContainer && typeof this.natParticlesContainer.destroy === 'function') {
             this.natParticlesContainer.destroy();
             this.natParticlesContainer = null;
