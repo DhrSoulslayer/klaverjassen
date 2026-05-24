@@ -142,15 +142,15 @@ class KlaverjassenGame {
         if (pitWij) scoreWij += 100;
         if (pitZij) scoreZij += 100;
 
-        // Check for nat
+        // Check for nat (vragende partij is nat bij 81-81, dus <= 81 slagpunten)
         let natWarning = '';
         if (whoPlayed && cardPointsWij + cardPointsZij === CARD_POINTS_TOTAL) {
             const playingTeamCardPoints = whoPlayed === 'wij' ? cardPointsWij : cardPointsZij;
             const playingTeamLastTrick = lastTrickWinner === whoPlayed ? 10 : 0;
             const playingTeamTrickPoints = playingTeamCardPoints + playingTeamLastTrick;
-            if (playingTeamTrickPoints < NAT_THRESHOLD) {
+            if (playingTeamTrickPoints <= NAT_THRESHOLD - 1) {
                 const natTeamName = whoPlayed === 'wij' ? 'Team Wij' : 'Team Zij';
-                natWarning = `<div class="nat-warning">⚠️ NAT: ${escapeHtml(natTeamName)} heeft < ${NAT_THRESHOLD} slagpunten! Alle punten gaan naar tegenstander.</div>`;
+                natWarning = `<div class="nat-warning">⚠️ NAT: ${escapeHtml(natTeamName)} heeft ≤ ${NAT_THRESHOLD - 1} slagpunten! Alle punten gaan naar tegenstander.</div>`;
                 if (whoPlayed === 'wij') {
                     scoreZij = scoreWij + scoreZij;
                     scoreWij = 0;
@@ -407,13 +407,13 @@ class KlaverjassenGame {
             scoreZij += 100;
         }
 
-        // NAT CHECK: If playing team has < 82 slagpunten (kaartpunten + laatste slag), all points go to opponent
+        // NAT CHECK: If playing team has <= 81 slagpunten (kaartpunten + laatste slag), all points go to opponent
         let natApplied = false;
         if (whoPlayed && cardPointsWij + cardPointsZij === CARD_POINTS_TOTAL) {
             const playingTeamCardPoints = whoPlayed === 'wij' ? cardPointsWij : cardPointsZij;
             const playingTeamLastTrick = lastTrickWinner === whoPlayed ? 10 : 0;
             const playingTeamTrickPoints = playingTeamCardPoints + playingTeamLastTrick;
-            if (playingTeamTrickPoints < NAT_THRESHOLD) {
+            if (playingTeamTrickPoints <= NAT_THRESHOLD - 1) {
                 // NAT: All points go to opponent
                 natApplied = true;
                 if (whoPlayed === 'wij') {
@@ -468,7 +468,7 @@ class KlaverjassenGame {
         
         // Show success message
         if (natApplied) {
-            this.showMessage(`Ronde toegevoegd! ⚠️ NAT toegepast - ${whoPlayed === 'wij' ? 'Team Wij' : 'Team Zij'} had < 82 punten!`, 'warning');
+            this.showMessage(`Ronde toegevoegd! ⚠️ NAT toegepast - ${whoPlayed === 'wij' ? 'Team Wij' : 'Team Zij'} had ≤ ${NAT_THRESHOLD - 1} slagpunten!`, 'warning');
         } else {
             this.showRoundAddedMessage();
         }
