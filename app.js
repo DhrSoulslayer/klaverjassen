@@ -1043,7 +1043,7 @@ class KlaverjassenGame {
 
         const rainLayer = document.createElement('div');
         rainLayer.className = 'nat-rain-layer';
-        this.natAnimationCounter += 1;
+        this.natAnimationCounter = (this.natAnimationCounter % 10000) + 1;
         rainLayer.id = `natRainLayer-${this.natAnimationCounter}`;
 
         const wiper = document.createElement('div');
@@ -1126,7 +1126,12 @@ class KlaverjassenGame {
             loadPromise = particlesEngine.load(layerId, options);
         } catch (error) {
             console.warn('NAT rain fallback: particles load signature failed, retrying with object signature.', error);
-            loadPromise = particlesEngine.load({ id: layerId, options });
+            try {
+                loadPromise = particlesEngine.load({ id: layerId, options });
+            } catch (secondError) {
+                console.warn('NAT rain fallback: object signature failed, using CSS rain fallback.', secondError);
+                return false;
+            }
         }
 
         Promise.resolve(loadPromise)
@@ -1163,12 +1168,10 @@ class KlaverjassenGame {
 
     playNatWipeAnimation() {
         if (!this.natOverlay) return;
-
-        const cleanup = () => this.clearNatRainAnimation();
         const wiper = this.natOverlay.querySelector('.nat-wiper');
 
         if (window.gsap && wiper) {
-            const timeline = window.gsap.timeline({ onComplete: cleanup });
+            const timeline = window.gsap.timeline({ onComplete: () => this.clearNatRainAnimation() });
             timeline
                 .set(wiper, { opacity: 1, xPercent: -180, rotation: -16 })
                 .to(wiper, { duration: 0.9, xPercent: 120, ease: 'power2.inOut' })
@@ -1178,7 +1181,7 @@ class KlaverjassenGame {
         }
 
         this.natOverlay.classList.add('nat-rain-overlay--wipe');
-        setTimeout(cleanup, 1200);
+        setTimeout(() => this.clearNatRainAnimation(), 1200);
     }
 
     clearNatRainAnimation() {
@@ -1187,7 +1190,7 @@ class KlaverjassenGame {
             this.natAnimationTimeout = null;
         }
 
-        // Defensive check keeps cleanup compatible across tsParticles container versions.
+        // Defensive check to keep cleanup compatible across tsParticles container versions.
         if (this.natParticlesContainer && typeof this.natParticlesContainer.destroy === 'function') {
             this.natParticlesContainer.destroy();
             this.natParticlesContainer = null;
