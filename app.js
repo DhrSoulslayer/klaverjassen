@@ -7,6 +7,7 @@ function escapeHtml(text) {
 }
 
 const CARD_POINTS_TOTAL = 152;
+const NAT_THRESHOLD = 82;
 
 class KlaverjassenGame {
     constructor() {
@@ -129,9 +130,11 @@ class KlaverjassenGame {
         let natWarning = '';
         if (whoPlayed && cardPointsWij + cardPointsZij === CARD_POINTS_TOTAL) {
             const playingTeamCardPoints = whoPlayed === 'wij' ? cardPointsWij : cardPointsZij;
-            if (playingTeamCardPoints < 82) {
+            const playingTeamLastTrick = lastTrickWinner === whoPlayed ? 10 : 0;
+            const playingTeamTrickPoints = playingTeamCardPoints + playingTeamLastTrick;
+            if (playingTeamTrickPoints < NAT_THRESHOLD) {
                 const natTeamName = whoPlayed === 'wij' ? 'Team Wij' : 'Team Zij';
-                natWarning = `<div class="nat-warning">⚠️ NAT: ${escapeHtml(natTeamName)} heeft < 82 punten! Alle punten gaan naar tegenstander.</div>`;
+                natWarning = `<div class="nat-warning">⚠️ NAT: ${escapeHtml(natTeamName)} heeft < ${NAT_THRESHOLD} slagpunten! Alle punten gaan naar tegenstander.</div>`;
                 if (whoPlayed === 'wij') {
                     scoreZij = scoreWij + scoreZij;
                     scoreWij = 0;
@@ -388,11 +391,13 @@ class KlaverjassenGame {
             scoreZij += 100;
         }
 
-        // NAT CHECK: If playing team has < 82 card points (without roem), all points go to opponent
+        // NAT CHECK: If playing team has < 82 slagpunten (kaartpunten + laatste slag), all points go to opponent
         let natApplied = false;
         if (whoPlayed && cardPointsWij + cardPointsZij === CARD_POINTS_TOTAL) {
             const playingTeamCardPoints = whoPlayed === 'wij' ? cardPointsWij : cardPointsZij;
-            if (playingTeamCardPoints < 82) {
+            const playingTeamLastTrick = lastTrickWinner === whoPlayed ? 10 : 0;
+            const playingTeamTrickPoints = playingTeamCardPoints + playingTeamLastTrick;
+            if (playingTeamTrickPoints < NAT_THRESHOLD) {
                 // NAT: All points go to opponent
                 natApplied = true;
                 if (whoPlayed === 'wij') {
