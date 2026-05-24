@@ -139,8 +139,8 @@ class KlaverjassenGame {
 
     getAutoPitState(cardPointsWij, cardPointsZij) {
         return {
-            wij: cardPointsWij === CARD_POINTS_TOTAL && cardPointsZij === 0,
-            zij: cardPointsZij === CARD_POINTS_TOTAL && cardPointsWij === 0
+            wij: cardPointsWij === CARD_POINTS_TOTAL,
+            zij: cardPointsZij === CARD_POINTS_TOTAL
         };
     }
 
