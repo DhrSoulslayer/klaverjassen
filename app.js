@@ -459,6 +459,7 @@ class KlaverjassenGame {
             timestamp: new Date().toISOString()
         };
         
+        // Bewaar status vóór toevoegen om alleen te reageren op het moment dat de grens wordt bereikt.
         const wasScoreLimitReached = this.isScoreLimitReached();
         this.rounds.push(round);
         
@@ -489,6 +490,8 @@ class KlaverjassenGame {
                 const winnerName = `Team ${winner === 'wij' ? 'Wij' : 'Zij'}`;
                 this.showMessage(`🏆 ${winnerName} heeft gewonnen met ${WINNING_SCORE}+ punten!`, 'success');
                 this.showWinnerFireworks(winnerName);
+            } else if (winner === 'tie') {
+                this.showMessage(`🤝 Gelijkspel op ${WINNING_SCORE}+ punten!`, 'info');
             }
         }
     }
