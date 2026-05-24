@@ -111,54 +111,24 @@
                 <div class="roem-section">
                     <h4>Roem Team Wij:</h4>
                     <div class="roem-grid">
-                        <label class="roem-checkbox">
-                            <input type="checkbox" id="roemWijDriekaart" value="20">
-                            <span>Driekaart (+20)</span>
-                        </label>
-                        <label class="roem-checkbox">
-                            <input type="checkbox" id="roemWijVierkaart" value="50">
-                            <span>Vierkaart (+50)</span>
-                        </label>
-                        <label class="roem-checkbox">
-                            <input type="checkbox" id="roemWijStuk" value="20">
-                            <span>Stuk (+20)</span>
-                        </label>
-                        <label class="roem-checkbox">
-                            <input type="checkbox" id="roemWijVierGelijken" value="100">
-                            <span>Vier gelijken (+100)</span>
-                        </label>
-                        <label class="roem-checkbox">
-                            <input type="checkbox" id="roemWijVierBoeren" value="200">
-                            <span>Vier boeren (+200)</span>
-                        </label>
+                        <button type="button" class="btn roem-btn" data-team="wij" data-value="20">+20 Roem</button>
+                        <button type="button" class="btn roem-btn" data-team="wij" data-value="50">+50 Roem</button>
+                        <button type="button" class="btn roem-reset-btn" data-team="wij">Reset</button>
                     </div>
+                    <div class="roem-total">Totaal: <span id="roemWijTotal">0</span></div>
+                    <input type="hidden" id="roemWij" value="0">
                 </div>
 
                 <!-- Roem Team Zij -->
                 <div class="roem-section">
                     <h4>Roem Team Zij:</h4>
                     <div class="roem-grid">
-                        <label class="roem-checkbox">
-                            <input type="checkbox" id="roemZijDriekaart" value="20">
-                            <span>Driekaart (+20)</span>
-                        </label>
-                        <label class="roem-checkbox">
-                            <input type="checkbox" id="roemZijVierkaart" value="50">
-                            <span>Vierkaart (+50)</span>
-                        </label>
-                        <label class="roem-checkbox">
-                            <input type="checkbox" id="roemZijStuk" value="20">
-                            <span>Stuk (+20)</span>
-                        </label>
-                        <label class="roem-checkbox">
-                            <input type="checkbox" id="roemZijVierGelijken" value="100">
-                            <span>Vier gelijken (+100)</span>
-                        </label>
-                        <label class="roem-checkbox">
-                            <input type="checkbox" id="roemZijVierBoeren" value="200">
-                            <span>Vier boeren (+200)</span>
-                        </label>
+                        <button type="button" class="btn roem-btn" data-team="zij" data-value="20">+20 Roem</button>
+                        <button type="button" class="btn roem-btn" data-team="zij" data-value="50">+50 Roem</button>
+                        <button type="button" class="btn roem-reset-btn" data-team="zij">Reset</button>
                     </div>
+                    <div class="roem-total">Totaal: <span id="roemZijTotal">0</span></div>
+                    <input type="hidden" id="roemZij" value="0">
                 </div>
 
                 <!-- Bonussen -->
