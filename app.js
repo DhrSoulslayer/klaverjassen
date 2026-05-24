@@ -18,6 +18,15 @@ const NAT_FALLBACK_DROP_DURATION_BASE = 0.65;
 const NAT_FALLBACK_DROP_DURATION_VARIATION = 0.55;
 const NAT_FALLBACK_DROP_OPACITY_BASE = 0.3;
 const NAT_FALLBACK_DROP_OPACITY_VARIATION = 0.45;
+const NAT_ANIMATION_COUNTER_MAX = 10000;
+const NAT_PARTICLE_EMIT_QUANTITY = 28;
+const NAT_PARTICLE_EMIT_DELAY = 0.08;
+const NAT_WIPER_SWEEP_DURATION_S = 0.9;
+const NAT_WIPER_EXIT_DURATION_S = 0.45;
+const NAT_WIPER_OVERLAY_FADE_DURATION_S = 0.25;
+const NAT_WIPER_SWEEP_X_PERCENT = 120;
+const NAT_WIPER_EXIT_X_PERCENT = 210;
+const NAT_FALLBACK_WIPE_CLEANUP_DELAY_MS = 1200;
 
 class KlaverjassenGame {
     constructor() {
@@ -1043,7 +1052,7 @@ class KlaverjassenGame {
 
         const rainLayer = document.createElement('div');
         rainLayer.className = 'nat-rain-layer';
-        this.natAnimationCounter = (this.natAnimationCounter % 10000) + 1;
+        this.natAnimationCounter = (this.natAnimationCounter % NAT_ANIMATION_COUNTER_MAX) + 1;
         rainLayer.id = `natRainLayer-${this.natAnimationCounter}`;
 
         const wiper = document.createElement('div');
@@ -1076,6 +1085,7 @@ class KlaverjassenGame {
             fpsLimit: 60,
             particles: {
                 number: {
+                    // Emitters generate the drops dynamically, so static particle count starts at zero.
                     value: 0
                 },
                 color: {
@@ -1110,8 +1120,8 @@ class KlaverjassenGame {
                     y: 0
                 },
                 rate: {
-                    quantity: 28,
-                    delay: 0.08
+                    quantity: NAT_PARTICLE_EMIT_QUANTITY,
+                    delay: NAT_PARTICLE_EMIT_DELAY
                 },
                 size: {
                     width: 100,
@@ -1174,14 +1184,14 @@ class KlaverjassenGame {
             const timeline = window.gsap.timeline({ onComplete: () => this.clearNatRainAnimation() });
             timeline
                 .set(wiper, { opacity: 1, xPercent: -180, rotation: -16 })
-                .to(wiper, { duration: 0.9, xPercent: 120, ease: 'power2.inOut' })
-                .to(wiper, { duration: 0.45, xPercent: 210, opacity: 0, ease: 'power1.out' })
-                .to(this.natOverlay, { duration: 0.25, opacity: 0 }, '<');
+                .to(wiper, { duration: NAT_WIPER_SWEEP_DURATION_S, xPercent: NAT_WIPER_SWEEP_X_PERCENT, ease: 'power2.inOut' })
+                .to(wiper, { duration: NAT_WIPER_EXIT_DURATION_S, xPercent: NAT_WIPER_EXIT_X_PERCENT, opacity: 0, ease: 'power1.out' })
+                .to(this.natOverlay, { duration: NAT_WIPER_OVERLAY_FADE_DURATION_S, opacity: 0 }, '<');
             return;
         }
 
         this.natOverlay.classList.add('nat-rain-overlay--wipe');
-        setTimeout(() => this.clearNatRainAnimation(), 1200);
+        setTimeout(() => this.clearNatRainAnimation(), NAT_FALLBACK_WIPE_CLEANUP_DELAY_MS);
     }
 
     clearNatRainAnimation() {
