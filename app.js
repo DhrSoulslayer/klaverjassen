@@ -137,6 +137,13 @@ class KlaverjassenGame {
         });
     }
 
+    getAutoPitState(cardPointsWij, cardPointsZij) {
+        return {
+            wij: cardPointsWij === CARD_POINTS_TOTAL && cardPointsZij === 0,
+            zij: cardPointsZij === CARD_POINTS_TOTAL && cardPointsWij === 0
+        };
+    }
+
     updateScorePreview() {
         const preview = document.getElementById('scorePreview');
         const content = document.getElementById('previewContent');
@@ -149,10 +156,9 @@ class KlaverjassenGame {
         const pitWij = document.getElementById('pitWij').checked;
         const pitZij = document.getElementById('pitZij').checked;
         const whoPlayed = document.getElementById('whoPlayed').value;
-        const autoPitWij = cardPointsWij === CARD_POINTS_TOTAL && cardPointsZij === 0;
-        const autoPitZij = cardPointsZij === CARD_POINTS_TOTAL && cardPointsWij === 0;
-        const pitWijApplied = pitWij || autoPitWij;
-        const pitZijApplied = pitZij || autoPitZij;
+        const autoPit = this.getAutoPitState(cardPointsWij, cardPointsZij);
+        const pitWijApplied = pitWij || autoPit.wij;
+        const pitZijApplied = pitZij || autoPit.zij;
 
         if (cardPointsWij === 0 && cardPointsZij === 0 && roemWij === 0 && roemZij === 0) {
             preview.style.display = 'none';
@@ -419,10 +425,9 @@ class KlaverjassenGame {
         const lastTrickWinner = document.getElementById('lastTrickWinner').value;
         const pitWij = document.getElementById('pitWij').checked;
         const pitZij = document.getElementById('pitZij').checked;
-        const autoPitWij = cardPointsWij === CARD_POINTS_TOTAL && cardPointsZij === 0;
-        const autoPitZij = cardPointsZij === CARD_POINTS_TOTAL && cardPointsWij === 0;
-        const pitWijApplied = pitWij || autoPitWij;
-        const pitZijApplied = pitZij || autoPitZij;
+        const autoPit = this.getAutoPitState(cardPointsWij, cardPointsZij);
+        const pitWijApplied = pitWij || autoPit.wij;
+        const pitZijApplied = pitZij || autoPit.zij;
 
         // Calculate base scores (card points + roem)
         let scoreWij = cardPointsWij + roemWij;
@@ -1130,11 +1135,12 @@ class KlaverjassenGame {
                 const cardPointsZij = document.getElementById('cardPointsZij');
                 const pitWijCheckbox = document.getElementById('pitWij');
                 const pitZijCheckbox = document.getElementById('pitZij');
+                const autoPit = this.getAutoPitState(wijPoints, zijPoints);
                 if (cardPointsZij) {
                     cardPointsZij.value = zijPoints >= 0 && zijPoints <= CARD_POINTS_TOTAL ? zijPoints : '';
                     if (pitWijCheckbox && pitZijCheckbox) {
-                        pitWijCheckbox.checked = wijPoints === CARD_POINTS_TOTAL && zijPoints === 0;
-                        pitZijCheckbox.checked = zijPoints === CARD_POINTS_TOTAL && wijPoints === 0;
+                        pitWijCheckbox.checked = autoPit.wij;
+                        pitZijCheckbox.checked = autoPit.zij;
                     }
                     // Trigger preview update
                     this.updateScorePreview();
