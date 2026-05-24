@@ -6,6 +6,8 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+const CARD_POINTS_TOTAL = 152;
+
 class KlaverjassenGame {
     constructor() {
         this.players = { wij: [], zij: [] };
@@ -125,7 +127,7 @@ class KlaverjassenGame {
 
         // Check for nat
         let natWarning = '';
-        if (whoPlayed && cardPointsWij + cardPointsZij === 162) {
+        if (whoPlayed && cardPointsWij + cardPointsZij === CARD_POINTS_TOTAL) {
             const playingTeamCardPoints = whoPlayed === 'wij' ? cardPointsWij : cardPointsZij;
             if (playingTeamCardPoints < 82) {
                 const natTeamName = whoPlayed === 'wij' ? 'Team Wij' : 'Team Zij';
@@ -142,8 +144,8 @@ class KlaverjassenGame {
 
         // Validate card points
         let validationWarning = '';
-        if (cardPointsWij + cardPointsZij !== 162 && cardPointsWij > 0 && cardPointsZij > 0) {
-            validationWarning = `<div class="validation-warning">⚠️ Kaartpunten tellen op tot ${escapeHtml(cardPointsWij + cardPointsZij)}, moeten 162 zijn.</div>`;
+        if (cardPointsWij + cardPointsZij !== CARD_POINTS_TOTAL && cardPointsWij > 0 && cardPointsZij > 0) {
+            validationWarning = `<div class="validation-warning">⚠️ Kaartpunten tellen op tot ${escapeHtml(cardPointsWij + cardPointsZij)}, moeten ${CARD_POINTS_TOTAL} zijn.</div>`;
         }
 
         const escapedCardPointsWij = escapeHtml(cardPointsWij);
@@ -345,11 +347,11 @@ class KlaverjassenGame {
         const whoPlayed = document.getElementById('whoPlayed').value;
         const cardPointsWij = parseInt(document.getElementById('cardPointsWij').value) || 0;
         // Automatically calculate team zij points
-        const cardPointsZij = 162 - cardPointsWij;
+        const cardPointsZij = CARD_POINTS_TOTAL - cardPointsWij;
 
         // Validate card points
-        if (cardPointsWij < 0 || cardPointsWij > 162) {
-            alert('Kaartpunten voor Team Wij moeten tussen 0 en 162 liggen.');
+        if (cardPointsWij < 0 || cardPointsWij > CARD_POINTS_TOTAL) {
+            alert(`Kaartpunten voor Team Wij moeten tussen 0 en ${CARD_POINTS_TOTAL} liggen.`);
             return;
         }
 
@@ -388,7 +390,7 @@ class KlaverjassenGame {
 
         // NAT CHECK: If playing team has < 82 card points (without roem), all points go to opponent
         let natApplied = false;
-        if (whoPlayed && cardPointsWij + cardPointsZij === 162) {
+        if (whoPlayed && cardPointsWij + cardPointsZij === CARD_POINTS_TOTAL) {
             const playingTeamCardPoints = whoPlayed === 'wij' ? cardPointsWij : cardPointsZij;
             if (playingTeamCardPoints < 82) {
                 // NAT: All points go to opponent
@@ -994,10 +996,10 @@ class KlaverjassenGame {
         if (cardPointsWij) {
             cardPointsWij.addEventListener('input', () => {
                 const wijPoints = parseInt(cardPointsWij.value) || 0;
-                const zijPoints = 162 - wijPoints;
+                const zijPoints = CARD_POINTS_TOTAL - wijPoints;
                 const cardPointsZij = document.getElementById('cardPointsZij');
                 if (cardPointsZij) {
-                    cardPointsZij.value = zijPoints >= 0 && zijPoints <= 162 ? zijPoints : '';
+                    cardPointsZij.value = zijPoints >= 0 && zijPoints <= CARD_POINTS_TOTAL ? zijPoints : '';
                     // Trigger preview update
                     this.updateScorePreview();
                 }
