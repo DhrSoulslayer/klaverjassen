@@ -9,6 +9,7 @@ function escapeHtml(text) {
 // 152 kaartpunten (+10 laatste slag aan winnaar) = 162 rondepunten totaal
 const CARD_POINTS_TOTAL = 152;
 const NAT_MAX_TRICK_POINTS = 81;
+const WINNING_SCORE = 1600;
 
 class KlaverjassenGame {
     constructor() {
@@ -362,6 +363,13 @@ class KlaverjassenGame {
             return;
         }
 
+        if (this.isScoreLimitReached()) {
+            const winner = this.getScoreLimitWinner();
+            const winnerText = winner === 'tie' ? 'Gelijkspel' : `Team ${winner === 'wij' ? 'Wij' : 'Zij'}`;
+            alert(`Het spel is al afgelopen. ${winnerText} heeft de grens van ${WINNING_SCORE} punten bereikt.`);
+            return;
+        }
+
         // Get input values
         const whoPlayed = document.getElementById('whoPlayed').value;
         const cardPointsWij = parseInt(document.getElementById('cardPointsWij').value) || 0;
@@ -451,6 +459,7 @@ class KlaverjassenGame {
             timestamp: new Date().toISOString()
         };
         
+        const wasScoreLimitReached = this.isScoreLimitReached();
         this.rounds.push(round);
         
         // Clear input fields
@@ -465,12 +474,22 @@ class KlaverjassenGame {
         // Update UI
         this.updateGameSummary();
         this.renderRoundsList();
+        this.updateAddRoundButton();
         
         // Show success message
         if (natApplied) {
             this.showMessage(`Ronde toegevoegd! ⚠️ NAT toegepast - ${whoPlayed === 'wij' ? 'Team Wij' : 'Team Zij'} had ≤ ${NAT_MAX_TRICK_POINTS} slagpunten!`, 'warning');
         } else {
             this.showRoundAddedMessage();
+        }
+
+        if (!wasScoreLimitReached && this.isScoreLimitReached()) {
+            const winner = this.getScoreLimitWinner();
+            if (winner === 'wij' || winner === 'zij') {
+                const winnerName = `Team ${winner === 'wij' ? 'Wij' : 'Zij'}`;
+                this.showMessage(`🏆 ${winnerName} heeft gewonnen met ${WINNING_SCORE}+ punten!`, 'success');
+                this.showWinnerFireworks(winnerName);
+            }
         }
     }
 
@@ -529,6 +548,7 @@ class KlaverjassenGame {
             this.saveGameState();
             this.updateGameSummary();
             this.renderRoundsList();
+            this.updateAddRoundButton();
             this.showMessage('Ronde verwijderd!', 'success');
         }
     }
@@ -572,6 +592,7 @@ class KlaverjassenGame {
         this.saveGameState();
         this.updateGameSummary();
         this.renderRoundsList();
+        this.updateAddRoundButton();
 
         // Scroll to form
         document.querySelector('.round-input').scrollIntoView({ behavior: 'smooth' });
@@ -770,6 +791,7 @@ class KlaverjassenGame {
         const addRoundBtn = document.getElementById('addRoundBtn');
         const wijPlayers = this.players.wij.length;
         const zijPlayers = this.players.zij.length;
+        const winner = this.getScoreLimitWinner();
         
         if (wijPlayers === 0 && zijPlayers === 0) {
             addRoundBtn.disabled = true;
@@ -785,6 +807,14 @@ class KlaverjassenGame {
                 addRoundBtn.textContent = 'Beide teams moeten precies 2 spelers hebben';
             } else {
                 addRoundBtn.textContent = 'Beide teams mogen maximaal 2 spelers hebben';
+            }
+            addRoundBtn.style.opacity = '0.6';
+        } else if (winner) {
+            addRoundBtn.disabled = true;
+            if (winner === 'tie') {
+                addRoundBtn.textContent = `Spel afgelopen (${WINNING_SCORE}+ punten)`;
+            } else {
+                addRoundBtn.textContent = `Spel afgelopen - Team ${winner === 'wij' ? 'Wij' : 'Zij'} wint`;
             }
             addRoundBtn.style.opacity = '0.6';
         } else {
@@ -888,6 +918,51 @@ class KlaverjassenGame {
             wijElement.textContent = wijTotal;
             zijElement.textContent = zijTotal;
         }
+    }
+
+    isScoreLimitReached() {
+        const totals = this.calculateTeamTotals();
+        return totals.wij >= WINNING_SCORE || totals.zij >= WINNING_SCORE;
+    }
+
+    getScoreLimitWinner() {
+        const totals = this.calculateTeamTotals();
+        if (totals.wij < WINNING_SCORE && totals.zij < WINNING_SCORE) {
+            return null;
+        }
+        if (totals.wij === totals.zij) {
+            return 'tie';
+        }
+        return totals.wij > totals.zij ? 'wij' : 'zij';
+    }
+
+    showWinnerFireworks(winnerName) {
+        const overlay = document.createElement('div');
+        overlay.className = 'fireworks-overlay';
+        overlay.innerHTML = `
+            <div class="fireworks-winner-name">🏆 ${escapeHtml(winnerName)} wint!</div>
+            <div class="fireworks-container"></div>
+        `;
+
+        const container = overlay.querySelector('.fireworks-container');
+        const colors = ['#ff4d4d', '#ffd93d', '#6bcB77', '#4d96ff', '#ff6f91', '#ffa94d'];
+        for (let i = 0; i < 22; i++) {
+            const firework = document.createElement('span');
+            firework.className = 'firework-burst';
+            firework.style.left = `${Math.random() * 100}%`;
+            firework.style.top = `${Math.random() * 100}%`;
+            firework.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            firework.style.animationDelay = `${Math.random() * 0.9}s`;
+            firework.style.animationDuration = `${1 + Math.random() * 0.9}s`;
+            container.appendChild(firework);
+        }
+
+        document.body.appendChild(overlay);
+        setTimeout(() => {
+            if (document.body.contains(overlay)) {
+                document.body.removeChild(overlay);
+            }
+        }, 3200);
     }
 
     async newGame() {
@@ -1235,6 +1310,65 @@ style.textContent = `
         to {
             transform: translateX(100%);
             opacity: 0;
+        }
+    }
+
+    @keyframes fireworkBurst {
+        0% {
+            transform: translate(-50%, -50%) scale(0.1);
+            opacity: 0;
+        }
+        20% {
+            opacity: 1;
+        }
+        100% {
+            transform: translate(-50%, -50%) scale(2.4);
+            opacity: 0;
+        }
+    }
+
+    .fireworks-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 1200;
+        pointer-events: none;
+        background: radial-gradient(circle, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.55));
+    }
+
+    .fireworks-container {
+        position: absolute;
+        inset: 0;
+    }
+
+    .firework-burst {
+        position: absolute;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        animation-name: fireworkBurst;
+        animation-timing-function: ease-out;
+        animation-iteration-count: 2;
+    }
+
+    .fireworks-winner-name {
+        position: absolute;
+        top: 18%;
+        left: 50%;
+        transform: translateX(-50%);
+        color: #fff;
+        font-size: 2rem;
+        font-weight: 700;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
+        text-align: center;
+        padding: 8px 16px;
+        border-radius: 12px;
+        background: rgba(0, 0, 0, 0.35);
+        max-width: calc(100% - 20px);
+    }
+
+    @media (max-width: 768px) {
+        .fireworks-winner-name {
+            font-size: 1.4rem;
         }
     }
 `;
