@@ -82,14 +82,29 @@ class KlaverjassenGame {
                 this.addPlayer();
             }
         });
+
+        document.querySelectorAll('.roem-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const team = e.currentTarget.dataset.team;
+                const value = parseInt(e.currentTarget.dataset.value) || 0;
+                this.adjustRoem(team, value);
+            });
+        });
+
+        document.querySelectorAll('.roem-reset-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const team = e.currentTarget.dataset.team;
+                this.setRoemValue(team, 0);
+                this.updateScorePreview();
+            });
+        });
     }
 
     setupScorePreview() {
         const inputs = [
             'cardPointsWij', 'cardPointsZij', 'whoPlayed',
             'lastTrickWinner', 'pitWij', 'pitZij',
-            'roemWijDriekaart', 'roemWijVierkaart', 'roemWijStuk', 'roemWijVierGelijken', 'roemWijVierBoeren',
-            'roemZijDriekaart', 'roemZijVierkaart', 'roemZijStuk', 'roemZijVierGelijken', 'roemZijVierBoeren'
+            'roemWij', 'roemZij'
         ];
 
         inputs.forEach(id => {
@@ -460,16 +475,32 @@ class KlaverjassenGame {
     }
 
     calculateRoem(team) {
-        const prefix = team === 'wij' ? 'roemWij' : 'roemZij';
-        let roem = 0;
+        const roemInput = document.getElementById(team === 'wij' ? 'roemWij' : 'roemZij');
+        return parseInt(roemInput?.value) || 0;
+    }
 
-        if (document.getElementById(`${prefix}Driekaart`).checked) roem += 20;
-        if (document.getElementById(`${prefix}Vierkaart`).checked) roem += 50;
-        if (document.getElementById(`${prefix}Stuk`).checked) roem += 20;
-        if (document.getElementById(`${prefix}VierGelijken`).checked) roem += 100;
-        if (document.getElementById(`${prefix}VierBoeren`).checked) roem += 200;
+    adjustRoem(team, amount) {
+        const roemInput = document.getElementById(team === 'wij' ? 'roemWij' : 'roemZij');
+        if (!roemInput) return;
 
-        return roem;
+        const current = parseInt(roemInput.value) || 0;
+        this.setRoemValue(team, current + amount);
+        this.updateScorePreview();
+    }
+
+    setRoemValue(team, value) {
+        const roemInputId = team === 'wij' ? 'roemWij' : 'roemZij';
+        const roemTotalId = team === 'wij' ? 'roemWijTotal' : 'roemZijTotal';
+        const roemInput = document.getElementById(roemInputId);
+        const roemTotal = document.getElementById(roemTotalId);
+        const sanitizedValue = Math.max(0, parseInt(value) || 0);
+
+        if (roemInput) {
+            roemInput.value = sanitizedValue;
+        }
+        if (roemTotal) {
+            roemTotal.textContent = sanitizedValue;
+        }
     }
 
     clearRoundForm() {
@@ -480,15 +511,8 @@ class KlaverjassenGame {
         document.getElementById('pitWij').checked = false;
         document.getElementById('pitZij').checked = false;
         
-        // Clear roem checkboxes
-        ['wij', 'zij'].forEach(team => {
-            const prefix = `roem${team.charAt(0).toUpperCase() + team.slice(1)}`;
-            document.getElementById(`${prefix}Driekaart`).checked = false;
-            document.getElementById(`${prefix}Vierkaart`).checked = false;
-            document.getElementById(`${prefix}Stuk`).checked = false;
-            document.getElementById(`${prefix}VierGelijken`).checked = false;
-            document.getElementById(`${prefix}VierBoeren`).checked = false;
-        });
+        this.setRoemValue('wij', 0);
+        this.setRoemValue('zij', 0);
 
         // Hide preview
         document.getElementById('scorePreview').style.display = 'none';
@@ -520,12 +544,12 @@ class KlaverjassenGame {
             document.getElementById('cardPointsWij').value = round.breakdown.wij.cardPoints || '';
             document.getElementById('cardPointsZij').value = round.breakdown.zij.cardPoints || '';
             
-            // Set roem checkboxes
+            // Set roem values
             const roemWij = round.breakdown.wij.roem || 0;
             const roemZij = round.breakdown.zij.roem || 0;
             
-            this.setRoemCheckboxes('wij', roemWij);
-            this.setRoemCheckboxes('zij', roemZij);
+            this.setRoemValue('wij', roemWij);
+            this.setRoemValue('zij', roemZij);
             
             // Set bonuses
             if (round.breakdown.wij.lastTrick > 0) {
@@ -552,32 +576,6 @@ class KlaverjassenGame {
         // Scroll to form
         document.querySelector('.round-input').scrollIntoView({ behavior: 'smooth' });
         this.showMessage('Ronde geladen voor bewerking. Pas aan en klik op "Ronde Toevoegen".', 'info');
-    }
-
-    setRoemCheckboxes(team, roemValue) {
-        const prefix = `roem${team.charAt(0).toUpperCase() + team.slice(1)}`;
-        const checkboxes = [
-            { id: `${prefix}Driekaart`, value: 20 },
-            { id: `${prefix}Vierkaart`, value: 50 },
-            { id: `${prefix}Stuk`, value: 20 },
-            { id: `${prefix}VierGelijken`, value: 100 },
-            { id: `${prefix}VierBoeren`, value: 200 }
-        ];
-
-        checkboxes.forEach(cb => {
-            document.getElementById(cb.id).checked = false;
-        });
-
-        // Try to match roem value (simple approach - may not be perfect for all combinations)
-        let remaining = roemValue;
-        const sorted = [...checkboxes].sort((a, b) => b.value - a.value);
-        
-        sorted.forEach(cb => {
-            if (remaining >= cb.value) {
-                document.getElementById(cb.id).checked = true;
-                remaining -= cb.value;
-            }
-        });
     }
 
     renderRoundsList() {

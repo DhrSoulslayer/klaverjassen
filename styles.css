@@ -396,35 +396,44 @@ header {
 
 .roem-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    grid-template-columns: repeat(3, minmax(80px, 1fr));
     gap: 3px;
 }
 
-.roem-checkbox {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+.roem-btn,
+.roem-reset-btn {
+    min-height: 36px;
+    font-size: 0.85rem;
+    padding: 6px 8px;
+}
+
+.roem-btn {
+    background: #2e7d32;
+    color: white;
+}
+
+.roem-btn:hover {
+    background: #1b5e20;
+}
+
+.roem-reset-btn {
+    background: #757575;
+    color: white;
+}
+
+.roem-reset-btn:hover {
+    background: #616161;
+}
+
+.roem-total {
+    margin-top: 6px;
     padding: 6px;
-    background: white;
     border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.2s;
-    border: 1px solid #e0e0e0;
-}
-
-.roem-checkbox:hover {
-    background: #f0f0f0;
-}
-
-.roem-checkbox input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-}
-
-.roem-checkbox span {
-    font-size: 0.8rem;
-    color: #333;
+    border: 1px solid #d0d0d0;
+    background: white;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
 }
 
 /* Bonus Section */
@@ -1021,8 +1030,8 @@ header {
         font-size: 1rem;
     }
     
-    .roem-checkbox span {
-        font-size: 0.8rem;
+    .roem-grid {
+        grid-template-columns: 1fr;
     }
     
     .bonus-checkbox span {
