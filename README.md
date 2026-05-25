@@ -69,32 +69,41 @@ De admin interface biedt uitgebreide mogelijkheden:
 
 ### 🐳 Docker (Aanbevolen)
 
-De applicatie kan eenvoudig worden gedraaid met Docker Desktop:
+Gebruik de kant-en-klare Docker image uit GHCR:
 
 **Vereisten:**
-- Docker Desktop geïnstalleerd
-- Docker Compose geïnstalleerd
+- Docker geïnstalleerd
 
 **Stappen:**
 
-1. **Bouw en start de container:**
+1. **Pull de latest image:**
 ```bash
-# In de project directory
-docker-compose up -d
+docker pull ghcr.io/dhrsoulslayer/klaverjassen:latest
 ```
 
-2. **Open de applicatie:**
-- Hoofdapp: http://localhost:8000
-- Admin interface: http://localhost:8000/admin
-
-3. **Logs bekijken:**
+2. **Start de container:**
 ```bash
-docker-compose logs -f
+docker run -d \
+  --name klaverjassen-app \
+  -p 9876:9876 \
+  -v "$(pwd)/data:/app/data" \
+  --restart unless-stopped \
+  ghcr.io/dhrsoulslayer/klaverjassen:latest
 ```
 
-4. **Container stoppen:**
+3. **Open de applicatie:**
+- Hoofdapp: http://localhost:9876
+- Admin interface: http://localhost:9876/admin
+
+4. **Logs bekijken:**
 ```bash
-docker-compose down
+docker logs -f klaverjassen-app
+```
+
+5. **Container stoppen en verwijderen:**
+```bash
+docker stop klaverjassen-app
+docker rm klaverjassen-app
 ```
 
 **Database persistentie:**
@@ -105,8 +114,8 @@ mkdir data
 ```
 
 **Netwerk toegang:**
-- De app is toegankelijk via `http://localhost:8000`
-- Binnen je lokale netwerk: `http://<jouw-ip-adres>:8000`
+- De app is toegankelijk via `http://localhost:9876`
+- Binnen je lokale netwerk: `http://<jouw-ip-adres>:9876`
 
 ### Lokale Ontwikkeling (Zonder Docker)
 ```bash
@@ -117,8 +126,8 @@ cd klaverjassen
 # Start de server met database functionaliteit
 python3 server.py
 
-# Open http://localhost:8000 in je browser
-# Admin interface: http://localhost:8000/admin
+# Open http://localhost:9876 in je browser
+# Admin interface: http://localhost:9876/admin
 ```
 
 ### PWA Installatie
@@ -147,7 +156,7 @@ ALLOWED_EXTENSIONS = {'.html', '.css', '.js', '.json', '.png', '.ico', '.svg'}
 ### Poort Wijzigen
 Om de server op een andere poort te draaien, pas de `server_address` aan in de `main()` functie:
 ```python
-server_address = ('', 8000)  # Wijzig 8000 naar gewenste poort
+server_address = ('', 9876)  # Wijzig 9876 naar gewenste poort
 ```
 
 ## 📁 Bestanden
@@ -239,15 +248,14 @@ De database slaat de volgende informatie op per spel:
 
 **Container start niet:**
 ```bash
-docker-compose logs
+docker logs klaverjassen-app
 ```
 
-**Poort 8000 is al in gebruik:**
-- Stop andere applicaties die poort 8000 gebruiken
-- Of wijzig de poort in `docker-compose.yml`:
-```yaml
-ports:
-  - "8001:8000"  # Wijzig naar gewenste poort
+**Poort 9876 is al in gebruik:**
+- Stop andere applicaties die poort 9876 gebruiken
+- Of start de container met een andere host-poort:
+```bash
+docker run -d --name klaverjassen-app -p 8001:9876 -v "$(pwd)/data:/app/data" ghcr.io/dhrsoulslayer/klaverjassen:latest
 ```
 
 **Database niet persistent:**
@@ -259,8 +267,10 @@ chmod 777 data
 
 **Container bijwerken na code wijzigingen:**
 ```bash
-docker-compose down
-docker-compose up --build -d
+docker pull ghcr.io/dhrsoulslayer/klaverjassen:latest
+docker stop klaverjassen-app
+docker rm klaverjassen-app
+docker run -d --name klaverjassen-app -p 9876:9876 -v "$(pwd)/data:/app/data" --restart unless-stopped ghcr.io/dhrsoulslayer/klaverjassen:latest
 ```
 
 ### Algemeen
