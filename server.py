@@ -364,12 +364,21 @@ class KlaverjassenHandler(BaseHTTPRequestHandler):
             credential_script = f'<script>sessionStorage.setItem("adminCredentials", "{auth_header[6:]}");</script>'
             html = html.replace('</head>', credential_script + '</head>')
         
+        encoded = html.encode('utf-8')
         self.send_response(200)
         self.send_header('Content-Type', 'text/html; charset=utf-8')
-        self.send_header('Content-Length', str(len(html.encode('utf-8'))))
-        self._send_security_headers()
+        self.send_header('Content-Length', str(len(encoded)))
+        # Admin page uses inline <script> blocks, so 'unsafe-inline' is required here.
+        # The remaining security headers match _send_security_headers().
+        self.send_header('Content-Security-Policy',
+                         "default-src 'self'; style-src 'self' 'unsafe-inline'; "
+                         "script-src 'self' 'unsafe-inline'")
+        self.send_header('X-Frame-Options', 'SAMEORIGIN')
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        self.send_header('X-XSS-Protection', '1; mode=block')
+        self.send_header('Referrer-Policy', 'strict-origin-when-cross-origin')
         self.end_headers()
-        self.wfile.write(html.encode('utf-8'))
+        self.wfile.write(encoded)
     
     def generate_admin_html(self):
         """Generate the admin interface HTML"""
@@ -379,7 +388,7 @@ class KlaverjassenHandler(BaseHTTPRequestHandler):
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Klaverjassen Admin - Spelgeschiedenis</title>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' https://cdn.jsdelivr.net/npm/tsparticles@4/tsparticles.bundle.min.js https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
     <style>
         * {
             margin: 0;

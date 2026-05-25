@@ -6,13 +6,14 @@ with multiple rounds, including NAT rules, roem, and pit scenarios.
 """
 
 import sys
-import json
 
 # Game constants (must match app.js)
 CARD_POINTS_TOTAL = 152
 NAT_MAX_TRICK_POINTS = 81
 LAST_TRICK_BONUS = 10
 WINNING_SCORE = 1600
+# Score target used by the simulation test (lower than WINNING_SCORE for faster runs)
+GAME_TARGET_SCORE = 1000
 
 
 def calculate_roem(driekaart=0, vierkaart=0, stuk=0, vier_gelijken=0, vier_boeren=0):
@@ -25,6 +26,10 @@ def calculate_round(card_points_wij, roem_wij, roem_zij, last_trick_winner,
     """
     Calculate round scores following Klaverjassen rules.
     Returns (score_wij, score_zij, nat_applied)
+
+    NAT rule (matches app.js addRound logic): if the playing team's
+    card points + last-trick bonus <= NAT_MAX_TRICK_POINTS, all points
+    go to the opponent.
     """
     card_points_zij = CARD_POINTS_TOTAL - card_points_wij
 
@@ -44,16 +49,20 @@ def calculate_round(card_points_wij, roem_wij, roem_zij, last_trick_winner,
     if pit_zij:
         score_zij += 100
 
-    # NAT rule: if playing team's card points <= 81, opponent gets all points
+    # NAT rule: playing team's (card points + last-trick bonus) must exceed 81
     nat_applied = False
-    if who_played == "wij" and card_points_wij <= NAT_MAX_TRICK_POINTS:
-        nat_applied = True
-        score_zij = score_wij + score_zij
-        score_wij = 0
-    elif who_played == "zij" and card_points_zij <= NAT_MAX_TRICK_POINTS:
-        nat_applied = True
-        score_wij = score_wij + score_zij
-        score_zij = 0
+    if who_played == "wij":
+        playing_last_trick = LAST_TRICK_BONUS if last_trick_winner == "wij" else 0
+        if card_points_wij + playing_last_trick <= NAT_MAX_TRICK_POINTS:
+            nat_applied = True
+            score_zij = score_wij + score_zij
+            score_wij = 0
+    elif who_played == "zij":
+        playing_last_trick = LAST_TRICK_BONUS if last_trick_winner == "zij" else 0
+        if card_points_zij + playing_last_trick <= NAT_MAX_TRICK_POINTS:
+            nat_applied = True
+            score_wij = score_wij + score_zij
+            score_zij = 0
 
     return score_wij, score_zij, nat_applied
 
@@ -70,8 +79,43 @@ def test_basic_round():
     print("✓ test_basic_round passed")
 
 
-def test_roem():
-    """Test round with roem bonuses."""
+def test_roem_driekaart():
+    """Test driekaart roem (20 points)."""
+    roem = calculate_roem(driekaart=1)
+    assert roem == 20, f"Expected 20, got {roem}"
+    print("✓ test_roem_driekaart passed")
+
+
+def test_roem_vierkaart():
+    """Test vierkaart roem (50 points)."""
+    roem = calculate_roem(vierkaart=1)
+    assert roem == 50, f"Expected 50, got {roem}"
+    print("✓ test_roem_vierkaart passed")
+
+
+def test_roem_stuk():
+    """Test stuk roem (20 points)."""
+    roem = calculate_roem(stuk=1)
+    assert roem == 20, f"Expected 20, got {roem}"
+    print("✓ test_roem_stuk passed")
+
+
+def test_roem_vier_gelijken():
+    """Test vier gelijken roem (100 points)."""
+    roem = calculate_roem(vier_gelijken=1)
+    assert roem == 100, f"Expected 100, got {roem}"
+    print("✓ test_roem_vier_gelijken passed")
+
+
+def test_roem_vier_boeren():
+    """Test vier boeren roem (200 points)."""
+    roem = calculate_roem(vier_boeren=1)
+    assert roem == 200, f"Expected 200, got {roem}"
+    print("✓ test_roem_vier_boeren passed")
+
+
+def test_roem_combined():
+    """Test round with combined driekaart + stuk roem for wij."""
     roem_wij = calculate_roem(driekaart=1, stuk=1)  # 20 + 20 = 40
     score_wij, score_zij, nat = calculate_round(
         card_points_wij=100, roem_wij=roem_wij, roem_zij=0,
@@ -79,33 +123,64 @@ def test_roem():
     )
     assert score_wij == 150, f"Expected 150, got {score_wij}"  # 100 + 40 + 10
     assert score_zij == 52, f"Expected 52, got {score_zij}"    # 52
-    print("✓ test_roem passed")
+    print("✓ test_roem_combined passed")
+
+
+def test_roem_all_types_combined():
+    """All five roem types summed equals 390."""
+    roem = calculate_roem(driekaart=1, vierkaart=1, stuk=1, vier_gelijken=1, vier_boeren=1)
+    # 20 + 50 + 20 + 100 + 200 = 390
+    assert roem == 390, f"Expected 390, got {roem}"
+    print("✓ test_roem_all_types_combined passed")
 
 
 def test_nat_rule():
-    """Test NAT rule - playing team gets less than 82 card points."""
+    """Test NAT rule - playing team's trick points (card pts + last trick) <= 81."""
+    # wij plays; last trick goes to zij, so wij trick points = 60 + 0 = 60 <= 81 → NAT
     score_wij, score_zij, nat = calculate_round(
         card_points_wij=60, roem_wij=20, roem_zij=0,
         last_trick_winner="zij", who_played="wij"
     )
-    # Wij played but only got 60 card points (<=81), so NAT applies
-    # Wij would have: 60 + 20 = 80, Zij would have: 92 + 10 = 102
-    # After NAT: Wij = 0, Zij = 80 + 102 = 182
+    # Pre-NAT: wij = 60+20=80, zij = 92+10=102
+    # After NAT:  wij = 0, zij = 80+102 = 182
     assert nat is True
     assert score_wij == 0, f"Expected 0, got {score_wij}"
     assert score_zij == 182, f"Expected 182, got {score_zij}"
     print("✓ test_nat_rule passed")
 
 
+def test_nat_boundary():
+    """NAT triggers when card_pts + last_trick equals exactly 81."""
+    # wij plays; last trick goes to wij, so trick points = 71 + 10 = 81 → NAT
+    score_wij, score_zij, nat = calculate_round(
+        card_points_wij=71, roem_wij=0, roem_zij=0,
+        last_trick_winner="wij", who_played="wij"
+    )
+    assert nat is True, "NAT must trigger when trick points == 81"
+    assert score_wij == 0, f"Expected 0, got {score_wij}"
+    print("✓ test_nat_boundary passed")
+
+
+def test_nat_boundary_safe():
+    """NAT does NOT trigger when card_pts + last_trick equals 82."""
+    # wij plays; last trick goes to wij, so trick points = 72 + 10 = 82 → safe
+    score_wij, score_zij, nat = calculate_round(
+        card_points_wij=72, roem_wij=0, roem_zij=0,
+        last_trick_winner="wij", who_played="wij"
+    )
+    assert nat is False, "NAT must NOT trigger when trick points == 82"
+    print("✓ test_nat_boundary_safe passed")
+
+
 def test_nat_rule_opponent():
-    """Test NAT rule when opponent (zij) played and gets less than 82."""
+    """Test NAT rule when opponent (zij) played and gets less than 82 trick points."""
+    # zij plays; zij_cp = 52, last trick goes to wij so zij trick points = 52 + 0 = 52 → NAT
     score_wij, score_zij, nat = calculate_round(
         card_points_wij=100, roem_wij=0, roem_zij=20,
         last_trick_winner="wij", who_played="zij"
     )
-    # Zij played but only got 52 card points (<=81), so NAT applies
-    # Wij would have: 100 + 10 = 110, Zij would have: 52 + 20 = 72
-    # After NAT: Wij = 110 + 72 = 182, Zij = 0
+    # Pre-NAT: wij = 100+10=110, zij = 52+20=72
+    # After NAT: wij = 110+72=182, zij = 0
     assert nat is True
     assert score_wij == 182, f"Expected 182, got {score_wij}"
     assert score_zij == 0, f"Expected 0, got {score_zij}"
@@ -113,52 +188,15 @@ def test_nat_rule_opponent():
 
 
 def test_pit():
-    """Test pit bonus."""
+    """Test pit bonus (all card points + last trick + pit = 262)."""
     score_wij, score_zij, nat = calculate_round(
         card_points_wij=152, roem_wij=0, roem_zij=0,
         last_trick_winner="wij", pit_wij=True, who_played="wij"
     )
-    # All card points + last trick + pit = 152 + 10 + 100 = 262
+    # 152 + 10 + 100 = 262
     assert score_wij == 262, f"Expected 262, got {score_wij}"
     assert score_zij == 0, f"Expected 0, got {score_zij}"
     print("✓ test_pit passed")
-
-
-def test_full_game_simulation():
-    """Simulate a full multi-round game."""
-    total_wij = 0
-    total_zij = 0
-
-    rounds = [
-        {"card_points_wij": 90, "roem_wij": 0, "roem_zij": 0, "last_trick": "wij", "who_played": "wij"},
-        {"card_points_wij": 70, "roem_wij": 20, "roem_zij": 0, "last_trick": "zij", "who_played": "zij"},
-        {"card_points_wij": 110, "roem_wij": 0, "roem_zij": 20, "last_trick": "wij", "who_played": "wij"},
-        {"card_points_wij": 50, "roem_wij": 0, "roem_zij": 0, "last_trick": "zij", "who_played": "wij"},  # NAT
-        {"card_points_wij": 130, "roem_wij": 50, "roem_zij": 0, "last_trick": "wij", "who_played": "wij"},
-        {"card_points_wij": 80, "roem_wij": 0, "roem_zij": 40, "last_trick": "wij", "who_played": "wij"},
-        {"card_points_wij": 100, "roem_wij": 20, "roem_zij": 0, "last_trick": "zij", "who_played": "zij"},
-        {"card_points_wij": 95, "roem_wij": 0, "roem_zij": 0, "last_trick": "wij", "who_played": "wij"},
-    ]
-
-    for i, r in enumerate(rounds):
-        s_wij, s_zij, nat = calculate_round(
-            card_points_wij=r["card_points_wij"],
-            roem_wij=r["roem_wij"],
-            roem_zij=r["roem_zij"],
-            last_trick_winner=r["last_trick"],
-            who_played=r["who_played"]
-        )
-        total_wij += s_wij
-        total_zij += s_zij
-        print(f"  Round {i+1}: Wij={s_wij}, Zij={s_zij}{' (NAT!)' if nat else ''}")
-
-    print(f"\n  Final scores: Wij={total_wij}, Zij={total_zij}")
-    winner = "Wij" if total_wij > total_zij else "Zij"
-    print(f"  Winner: {winner}")
-
-    # Verify total points make sense (no points lost)
-    assert total_wij >= 0 and total_zij >= 0, "Scores cannot be negative"
-    print("✓ test_full_game_simulation passed")
 
 
 def test_card_points_total():
@@ -170,11 +208,92 @@ def test_card_points_total():
     print("✓ test_card_points_total passed")
 
 
-def test_vier_boeren_roem():
-    """Test vier boeren (4 jacks) roem calculation."""
-    roem = calculate_roem(vier_boeren=1)
-    assert roem == 200, f"Expected 200, got {roem}"
-    print("✓ test_vier_boeren_roem passed")
+def test_game_to_1000_points():
+    """
+    Simulate a game until a team reaches GAME_TARGET_SCORE (1000) points.
+
+    The scripted rounds exercise every roem type and include a NAT event.
+    Afterwards extra rounds are played until the target is reached.
+
+    Round plan (scripted):
+      1. wij plays  - driekaart roem (20)
+      2. zij plays  - vierkaart roem (50) for zij
+      3. wij plays  - stuk roem (20)
+      4. wij plays  - vier gelijken roem (100) for zij
+      5. wij plays  - vier boeren roem (200) + pit for wij
+      6. wij plays  - NAT: 71 card pts + last trick (10) = 81 <= 81 → NAT
+    """
+    roem_driekaart   = calculate_roem(driekaart=1)    # 20
+    roem_vierkaart   = calculate_roem(vierkaart=1)    # 50
+    roem_stuk        = calculate_roem(stuk=1)         # 20
+    roem_vier_gelijk = calculate_roem(vier_gelijken=1)  # 100
+    roem_vier_boeren = calculate_roem(vier_boeren=1)  # 200
+
+    # (wij_cp, roem_wij, roem_zij, last_trick, who_played, pit_wij, pit_zij)
+    scripted_rounds = [
+        (100, roem_driekaart,   0,               "wij", "wij", False, False),
+        (50,  0,                roem_vierkaart,  "zij", "zij", False, False),
+        (90,  roem_stuk,        0,               "zij", "wij", False, False),
+        (110, 0,                roem_vier_gelijk,"wij", "wij", False, False),
+        (130, roem_vier_boeren, 0,               "wij", "wij", True,  False),
+        (71,  0,                0,               "wij", "wij", False, False),  # NAT
+    ]
+
+    total_wij = 0
+    total_zij = 0
+    nat_occurred = False
+    roem_types_seen = set()
+
+    print(f"\n  Target score: {GAME_TARGET_SCORE}")
+
+    for i, (wij_cp, r_wij, r_zij, last_trick, who_played, pit_wij, pit_zij) in enumerate(scripted_rounds):
+        s_wij, s_zij, nat = calculate_round(wij_cp, r_wij, r_zij, last_trick, pit_wij, pit_zij, who_played)
+        total_wij += s_wij
+        total_zij += s_zij
+        if nat:
+            nat_occurred = True
+        if r_wij == roem_driekaart and r_wij > 0:
+            roem_types_seen.add("driekaart")
+        if r_zij == roem_vierkaart and r_zij > 0:
+            roem_types_seen.add("vierkaart")
+        if r_wij == roem_stuk and r_wij > 0:
+            roem_types_seen.add("stuk")
+        if r_zij == roem_vier_gelijk and r_zij > 0:
+            roem_types_seen.add("vier_gelijken")
+        if r_wij == roem_vier_boeren and r_wij > 0:
+            roem_types_seen.add("vier_boeren")
+        print(f"  Round {i + 1}: Wij={s_wij}, Zij={s_zij}, "
+              f"TotWij={total_wij}, TotZij={total_zij}{' (NAT!)' if nat else ''}")
+
+    assert nat_occurred, "Scripted rounds must contain at least one NAT event"
+
+    expected_roem_types = {"driekaart", "vierkaart", "stuk", "vier_gelijken", "vier_boeren"}
+    assert roem_types_seen == expected_roem_types, (
+        f"Not all roem types covered. Missing: {expected_roem_types - roem_types_seen}"
+    )
+
+    # Play additional normal rounds until the target is reached
+    extra = 0
+    while total_wij < GAME_TARGET_SCORE and total_zij < GAME_TARGET_SCORE:
+        s_wij, s_zij, _ = calculate_round(
+            card_points_wij=100, roem_wij=0, roem_zij=0,
+            last_trick_winner="wij", who_played="wij"
+        )
+        total_wij += s_wij
+        total_zij += s_zij
+        extra += 1
+        assert extra <= 200, "Safety: game took too many extra rounds"
+
+    winner = "Wij" if total_wij >= GAME_TARGET_SCORE else "Zij"
+    total_rounds = len(scripted_rounds) + extra
+    print(f"\n  Game ended after {total_rounds} rounds "
+          f"(scripted: {len(scripted_rounds)}, extra: {extra})")
+    print(f"  Final scores: Wij={total_wij}, Zij={total_zij}")
+    print(f"  Winner: {winner}")
+
+    assert total_wij >= GAME_TARGET_SCORE or total_zij >= GAME_TARGET_SCORE
+    assert total_wij >= 0 and total_zij >= 0
+    print("✓ test_game_to_1000_points passed")
 
 
 def main():
@@ -186,13 +305,20 @@ def main():
 
     tests = [
         test_basic_round,
-        test_roem,
+        test_roem_driekaart,
+        test_roem_vierkaart,
+        test_roem_stuk,
+        test_roem_vier_gelijken,
+        test_roem_vier_boeren,
+        test_roem_combined,
+        test_roem_all_types_combined,
         test_nat_rule,
+        test_nat_boundary,
+        test_nat_boundary_safe,
         test_nat_rule_opponent,
         test_pit,
         test_card_points_total,
-        test_vier_boeren_roem,
-        test_full_game_simulation,
+        test_game_to_1000_points,
     ]
 
     passed = 0

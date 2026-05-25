@@ -6,6 +6,7 @@ on:
       - main
   push:
     branches:
+      - main
       - dev
 
 permissions:
@@ -129,12 +130,12 @@ jobs:
             exit 1
           fi
           
-          # Test games endpoint
+          # Test games endpoint (requires authentication → expect 401)
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:9876/api/games)
-          if [ "$HTTP_CODE" = "200" ]; then
-            echo "✓ /api/games responded with HTTP 200"
+          if [ "$HTTP_CODE" = "401" ]; then
+            echo "✓ /api/games correctly requires authentication (HTTP 401)"
           else
-            echo "✗ /api/games responded with HTTP $HTTP_CODE"
+            echo "✗ /api/games responded with HTTP $HTTP_CODE (expected 401)"
             kill $SERVER_PID 2>/dev/null || true
             exit 1
           fi

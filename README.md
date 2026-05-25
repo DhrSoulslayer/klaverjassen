@@ -1,87 +1,75 @@
-# Klaverjassen Score WebApp
+# 🃏 Klaverjassen Score WebApp
 
-Een mobiel-vriendelijke web applicatie om scores bij te houden voor het Nederlandse kaartspel Klaverjassen. Ondersteunt 2 teams ("Wij" vs "Zij") met maximaal 4 spelers.
+Een mobiel-vriendelijke web applicatie om scores bij te houden voor het Nederlandse kaartspel Klaverjassen. Speel met 2 teams ("Wij" vs "Zij"), houd alle rondes bij en bekijk de spelgeschiedenis via een beveiligd admin dashboard.
 
-## 🆕 Nieuwe Features
+---
 
-### 📊 Database & Admin Interface
-- **Automatisch Opslaan**: Alle gespeelde spellen worden automatisch opgeslagen in een SQLite database
-- **Admin Interface**: Bekijk alle gespeelde spellen en statistieken op `/admin`
-- **Spelgeschiedenis**: Complete geschiedenis van alle spellen met scores, spelers en datums
-- **Statistieken**: Overzicht van winst/verlies ratio's, gemiddelde scores en meest actieve spelers
-- **Handmatig Opslaan**: "Spel Opslaan" knop om het huidige spel direct op te slaan
+## 📋 Inhoudsopgave
 
-### 🔐 Beveiliging
-- **Basic Authentication**: Admin interface beveiligd met wachtwoord
-- **Security Headers**: Content-Security-Policy, X-Frame-Options, XSS-protection
-- **Input Validatie**: Alle binnenkomende data wordt gevalideerd
-- **Path Traversal Protection**: Voorkomt ongeautoriseerde bestandstoegang
+1. [Hoe de app werkt](#-hoe-de-app-werkt)
+2. [Installatie](#-installatie)
+3. [Gebruik](#-gebruik)
+4. [Admin Interface](#-admin-interface)
+5. [Configuratie](#️-configuratie)
+6. [Technische Details](#-technische-details)
+7. [API Endpoints](#-api-endpoints)
+8. [Beveiliging](#-beveiliging)
+9. [Bestanden](#-bestanden)
+10. [Probleemoplossing](#-probleemoplossing)
 
-## 🎯 Features
+---
 
-- **Team-gebaseerd Spel**: 2 vaste teams ("Wij" en "Zij")
-- **Maximaal 4 Spelers**: Verdeeld over de 2 teams
-- **Score Tracking**: Per ronde scores invoeren voor beide teams
-- **Real-time Updates**: Scores worden direct bijgewerkt
-- **Persistente Opslag**: Spelstatus wordt opgeslagen in localStorage
-- **Database Opslag**: Alle voltooide spellen worden opgeslagen in SQLite database
-- **Admin Dashboard**: Uitgebreide statistieken en spelgeschiedenis
-- **Mobile-First Design**: Geoptimaliseerd voor mobiele apparaten en tablets
-- **PWA Ondersteuning**: Installeerbaar als app op mobiele apparaten
-- **Offline Functionaliteit**: Werkt ook zonder internetverbinding
+## 🎮 Hoe de app werkt
 
-## 🎮 Gebruik
+### Het spelverloop
 
-### Spelers Toevoegen
-1. Klik op "Speler Toevoegen"
-2. Voer de naam van de speler in
-3. Selecteer het team ("Wij" of "Zij")
-4. Bevestig met "Toevoegen"
+De app volgt de standaard regels van Klaverjassen. Elk spel bestaat uit een reeks rondes. Per ronde voer je in:
 
-### Scores Invoeren
-1. Voer de score in voor "Team Wij"
-2. Voer de score in voor "Team Zij"
-3. Klik op "Ronde Toevoegen"
-4. Herhaal voor elke ronde
+- **Wie er heeft gespeeld** — Team Wij of Team Zij
+- **Kaartpunten** van Team Wij (die van Team Zij worden automatisch berekend: 152 − wij)
+- **Roem** — bonuspunten voor bijzondere combinaties in de hand:
+  | Type | Punten |
+  |------|--------|
+  | Driekaart | 20 |
+  | Vierkaart | 50 |
+  | Stuk (heer + vrouw troef) | 20 |
+  | Vier gelijken | 100 |
+  | Vier boeren | 200 |
+- **Laatste slag** — +10 punten voor het team dat de laatste slag pakt
+- **Pit** — +100 punten als een team alle slagen pakt; wordt automatisch aangevinkt bij 152 kaartpunten
 
-### Spel Opslaan
-- **Automatisch**: Bij "Nieuw Spel" wordt het huidige spel automatisch opgeslagen
-- **Handmatig**: Gebruik de "Spel Opslaan" knop om het huidige spel direct op te slaan
+### NAT-regel
 
-### Admin Interface
-De admin interface biedt uitgebreide mogelijkheden:
+Als de spelende partij na de ronde **≤ 81 slagpunten** heeft (kaartpunten + eventuele +10 voor de laatste slag), gaan **alle punten** van die ronde naar de tegenstander. De app detecteert dit automatisch en toont een waarschuwing.
 
-**Toegang:**
-- Ga naar `/admin` om de admin interface te openen
-- Je wordt gevraagd om in te loggen met je admin credentials
+### Score en winnaar
 
-**Functies:**
-- **Statistieken**: Bekijk totaal aantal gespeelde spellen, overwinningen per team, gemiddelde scores
-- **Spelgeschiedenis**: Doorzoek alle eerder gespeelde spellen met details
-- **Filteren**: Bekijk specifieke periodes of teams
+De totaalscores worden per team opgebouwd over alle rondes. Het eerste team dat **1600 punten** bereikt wint het spel. Bij een gelijktijdige overschrijding is het gelijkspel.
 
-**Navigatie:**
-- Klik op "Statistieken" voor een overzicht
-- Klik op "Alle Spellen" voor de complete geschiedenis
-- Klik op "Terug naar Spel" om terug te keren naar de hoofdapp
+### Opslaan
+
+- De actuele spelstatus wordt continu opgeslagen in **localStorage** (ook na sluiten van de browser beschikbaar).
+- Voltooide spellen worden opgeslagen in een **SQLite database** via de server (automatisch bij "Nieuw Spel", of handmatig via de knop "Spel Opslaan").
+
+---
 
 ## 🚀 Installatie
 
 ### 🐳 Docker (Aanbevolen)
 
-Gebruik de kant-en-klare Docker image uit GHCR:
+**Vereisten:** Docker geïnstalleerd
 
-**Vereisten:**
-- Docker geïnstalleerd
-
-**Stappen:**
-
-1. **Pull de latest image:**
+**1. Pull de image:**
 ```bash
 docker pull ghcr.io/dhrsoulslayer/klaverjassen:latest
 ```
 
-2. **Start de container:**
+**2. Maak een data-directory aan voor de database:**
+```bash
+mkdir data
+```
+
+**3. Start de container:**
 ```bash
 docker run -d \
   --name klaverjassen-app \
@@ -91,202 +79,233 @@ docker run -d \
   ghcr.io/dhrsoulslayer/klaverjassen:latest
 ```
 
-3. **Open de applicatie:**
+**4. Open de app:**
 - Hoofdapp: http://localhost:9876
 - Admin interface: http://localhost:9876/admin
 
-4. **Logs bekijken:**
+**Handige commando's:**
 ```bash
+# Logs bekijken
 docker logs -f klaverjassen-app
+
+# Container stoppen
+docker stop klaverjassen-app && docker rm klaverjassen-app
+
+# Updaten naar nieuwste versie
+docker pull ghcr.io/dhrsoulslayer/klaverjassen:latest
+docker stop klaverjassen-app && docker rm klaverjassen-app
+docker run -d --name klaverjassen-app -p 9876:9876 -v "$(pwd)/data:/app/data" --restart unless-stopped ghcr.io/dhrsoulslayer/klaverjassen:latest
 ```
 
-5. **Container stoppen en verwijderen:**
-```bash
-docker stop klaverjassen-app
-docker rm klaverjassen-app
-```
+> **Netwerktoegang:** De app is ook bereikbaar via `http://<jouw-ip-adres>:9876` binnen je lokale netwerk.
 
-**Database persistentie:**
-- De database wordt opgeslagen in de `data` directory
-- Maak deze directory aan voordat je de container start:
-```bash
-mkdir data
-```
+---
 
-**Netwerk toegang:**
-- De app is toegankelijk via `http://localhost:9876`
-- Binnen je lokale netwerk: `http://<jouw-ip-adres>:9876`
+### 💻 Lokale ontwikkeling (zonder Docker)
 
-### Lokale Ontwikkeling (Zonder Docker)
+**Vereisten:** Python 3.10+
+
 ```bash
 # Clone de repository
 git clone <repository-url>
 cd klaverjassen
 
-# Start de server met database functionaliteit
+# Start de server
 python3 server.py
 
 # Open http://localhost:9876 in je browser
-# Admin interface: http://localhost:9876/admin
 ```
 
-### PWA Installatie
-1. Open de app in Chrome/Safari op je mobiele apparaat
-2. Klik op "Toevoegen aan startscherm" of "Install App"
-3. De app wordt geïnstalleerd als een native app
+---
+
+### 📱 PWA installeren op je telefoon
+
+1. Open http://localhost:9876 (of het serveradres) in Chrome of Safari
+2. Kies **"Toevoegen aan startscherm"** / **"Install App"**
+3. De app werkt daarna als een native app, inclusief offline
+
+---
+
+## 🕹️ Gebruik
+
+### Een spel starten
+
+Bij het openen van de app verschijnt het **startscherm**. Vul hier de namen in van de vier spelers (2 per team) en klik op **"Spel Starten"**.
+
+### Een ronde invoeren
+
+1. Kies wie er heeft gespeeld (Team Wij / Team Zij)
+2. Voer de kaartpunten van Team Wij in — die van Team Zij worden automatisch ingevuld
+3. Voer de roem in via de knoppen (+20, +50, +20, +100, +200) of voer direct een waarde in
+4. Kies wie de laatste slag heeft gepakt (+10)
+5. Vink pit aan indien van toepassing (+100)
+6. Klik op **"Ronde Toevoegen"**
+
+De **score preview** toont realtime de berekende scores voordat je opslaat, inclusief een waarschuwing als er een NAT van toepassing is.
+
+### Rondes beheren
+
+Elke ronde toont een uitklapbaar overzicht met kaartpunten, roem, bonussen en totaal per team. Via de knoppen per ronde kun je:
+
+- **Bewerken** — laad de ronde terug in het formulier om aan te passen
+- **Overspelen** — verwijder de ronde en vul opnieuw in
+- **Verwijderen** — verwijder de ronde definitief
+
+Alle teamscores worden na elke wijziging automatisch herberekend.
+
+### Nieuw spel
+
+Klik op **"Nieuw Spel"** om het huidige spel automatisch op te slaan in de database en een nieuw spel te starten.
+
+---
+
+## 🔑 Admin Interface
+
+Ga naar `/admin` voor het beheerdersdashboard. Je hebt een gebruikersnaam en wachtwoord nodig (zie [Configuratie](#️-configuratie)).
+
+### Statistieken
+
+- Totaal aantal gespeelde spellen
+- Overwinningen per team (Wij / Zij)
+- Gemiddelde eindscores
+- Meest actieve speler
+
+### Spelgeschiedenis
+
+Overzicht van alle gespeelde spellen met datum, spelers, scores en winnaar.
+
+---
 
 ## ⚙️ Configuratie
 
-### Server Configuratie (server.py)
-
-De server kan worden aangepast via de volgende opties:
+De server wordt geconfigureerd bovenin `server.py`:
 
 ```python
-# Database
-DB_FILE = 'klaverjassen_games.db'  # Naam van het database bestand
+# Database bestandsnaam
+DB_FILE = 'klaverjassen_games.db'
 
-# Beveiliging
-ADMIN_USERNAME = 'admin'  # Wijzig de admin gebruikersnaam
-ADMIN_PASSWORD = 'wachtwoord'  # Wijzig het admin wachtwoord
-
-# Toegestane bestandsextensies voor static files
-ALLOWED_EXTENSIONS = {'.html', '.css', '.js', '.json', '.png', '.ico', '.svg'}
+# Admin inloggegevens — wijzig deze voor productiegebruik
+ADMIN_USERNAME = 'admin'
+ADMIN_PASSWORD = 'klaverjassen2024'
 ```
 
-### Poort Wijzigen
-Om de server op een andere poort te draaien, pas de `server_address` aan in de `main()` functie:
+**Poort wijzigen** — pas `server_address` aan in de `main()` functie:
 ```python
-server_address = ('', 9876)  # Wijzig 9876 naar gewenste poort
+server_address = ('', 9876)  # vervang 9876 door de gewenste poort
 ```
 
-## 📁 Bestanden
-
-- `server.py` - Python server met database functionaliteit en beveiliging
-- `index.html` - Hoofdpagina van de webapp
-- `styles.css` - Styling en responsive design
-- `app.js` - Game logica en database integratie
-- `manifest.json` - PWA configuratie
-- `sw.js` - Service Worker voor offline functionaliteit
-- `klaverjassen_games.db` - SQLite database (wordt automatisch aangemaakt)
-
-## 🎨 Design Features
-
-- **Responsive Design**: Werkt op alle schermformaten
-- **Team Kleuren**: Groen voor "Wij", oranje voor "Zij"
-- **Moderne UI**: Gradient achtergronden en schaduwen
-- **Smooth Animaties**: Hover effecten en transities
-- **Dark Mode Ready**: Ondersteunt systeem dark mode voorkeuren
-- **Admin Dashboard**: Professionele interface voor statistieken
+---
 
 ## 🔧 Technische Details
 
-- **Frontend**: Vanilla JavaScript, HTML5, CSS3
-- **Backend**: Python HTTP server met SQLite database
-- **Database**: SQLite met automatische schema creatie
-- **API Endpoints**: `/api/save-game`, `/api/games`, `/api/stats`
-- **Storage**: LocalStorage voor huidige spel + SQLite voor geschiedenis
-- **PWA**: Service Worker, Manifest, offline caching
-- **Beveiliging**: Basic Auth, Security Headers, Input Validatie
+| Onderdeel | Technologie |
+|-----------|-------------|
+| Frontend | Vanilla JavaScript, HTML5, CSS3 |
+| Backend | Python 3 (stdlib `http.server`) |
+| Database | SQLite (automatisch aangemaakt) |
+| Offline | Service Worker + localStorage |
+| PWA | Web App Manifest + iOS meta-tags |
+| Animaties | tsParticles (NAT-regen), GSAP (wiper), CSS (vuurwerk) |
 
-## 📱 Ondersteunde Apparaten
+### Spellogica (`app.js`)
 
-- **iOS**: iPhone, iPad (alle versies)
-- **Android**: Alle moderne Android apparaten
-- **Desktop**: Chrome, Firefox, Safari, Edge
-- **Tablets**: iPad, Android tablets, Windows tablets
+- Alle score-berekeningen zitten in `addRound()` — dit is de _single source of truth_
+- `recalculateScores()` herbouwt de spelerstotalen vanuit het `rounds`-array na elke wijziging
+- Rondes worden opgeslagen met een volledig `breakdown`-object (kaartpunten, roem, bonussen) zodat er nooit herschakelende discrepanties optreden
 
-## 🃏 Klaverjassen Specifiek
+### Datastructuur van een ronde
 
-- **2 Teams**: Altijd "Wij" vs "Zij" (traditionele teamnamen)
-- **Max 4 Spelers**: Verdeeld over de 2 teams
-- **Team Scores**: Scores worden per team bijgehouden
-- **Ronde-gebaseerd**: Elke ronde krijgt een score voor beide teams
-- **Winnaar Bepaling**: Team met hoogste totale score wint
+```json
+{
+  "round": 3,
+  "whoPlayed": "wij",
+  "breakdown": {
+    "wij": { "cardPoints": 100, "roem": 20, "lastTrick": 10, "pit": 0, "total": 130 },
+    "zij": { "cardPoints": 52,  "roem": 0,  "lastTrick": 0,  "pit": 0, "total": 52  }
+  },
+  "scores": { "wij": 130, "zij": 52 },
+  "natApplied": false,
+  "timestamp": "2026-05-25T14:00:00.000Z"
+}
+```
 
-## 📊 Database Schema
-
-De database slaat de volgende informatie op per spel:
-- **Spel ID**: Unieke identifier
-- **Datum & Tijd**: Wanneer het spel is gespeeld
-- **Spelers**: Per team (Wij/Zij)
-- **Rondes**: Alle ronde scores
-- **Eindscore**: Totale scores per team
-- **Winnaar**: Welk team heeft gewonnen
-- **Duur**: Hoe lang het spel duurde (indien beschikbaar)
+---
 
 ## 🌐 API Endpoints
 
 | Endpoint | Methode | Beveiliging | Beschrijving |
 |----------|---------|-------------|--------------|
-| `/` | GET | Nee | Hoofdpagina |
-| `/admin` | GET | Basic Auth | Admin interface |
-| `/api/games` | GET | Basic Auth | Alle gespeelde spellen |
-| `/api/stats` | GET | Nee | Spelstatistieken |
-| `/api/save-game` | POST | Basic Auth | Spel opslaan in database |
+| `/` | GET | — | Hoofdpagina |
+| `/admin` | GET | 🔐 Basic Auth | Admin dashboard |
+| `/api/games` | GET | 🔐 Basic Auth | Alle gespeelde spellen |
+| `/api/stats` | GET | — | Spelstatistieken |
+| `/api/save-game` | POST | 🔐 Basic Auth | Spel opslaan in database |
+
+---
 
 ## 🔐 Beveiliging
 
-### Authenticatie
-- **Basic Authentication**: De admin interface en sommige API endpoints zijn beveiligd met HTTP Basic Auth
-- **Credentials**: Moeten worden geconfigureerd in `server.py`
+- **Basic Authentication** op de admin interface en schrijf-endpoints
+- **Content-Security-Policy** — beperkt te laden bronnen
+- **X-Frame-Options: SAMEORIGIN** — voorkomt clickjacking
+- **X-Content-Type-Options: nosniff** — voorkomt MIME-sniffing
+- **X-XSS-Protection** — extra filter voor oudere browsers
+- **Path traversal-bescherming** — bestandsnamen worden gesanitiseerd
+- **Payload-limiet** — maximaal 1 MB per POST-verzoek
+- **Parameterized queries** — voorkomt SQL-injectie
 
-### Security Features
-- **Content-Security-Policy**: Beperkt welke brnen kunnen worden geladen
-- **X-Frame-Options**: Voorkomt clickjacking aanvallen
-- **X-Content-Type-Options**: Voorkomt MIME type sniffing
-- **X-XSS-Protection**: XSS filter voor oudere browsers
-- **Referrer Policy**: Controleert referrer informatie
+---
 
-### Input Validatie
-- Alle binnenkomende data wordt gevalideerd op structuur
-- Maximum payload grootte van 1MB
-- SQL injection preventie via parameterized queries
+## 📁 Bestanden
+
+| Bestand | Omschrijving |
+|---------|--------------|
+| `server.py` | Python HTTP-server met SQLite, API en admin interface |
+| `index.html` | Hoofdpagina van de webapp |
+| `styles.css` | Opmaak en responsive design |
+| `app.js` | Game-logica, score-berekeningen en UI |
+| `manifest.json` | PWA-configuratie |
+| `sw.js` | Service Worker voor offline-caching |
+| `tests/simulate_game.py` | Geautomatiseerde spelsimulatietests |
+| `klaverjassen_games.db` | SQLite-database (automatisch aangemaakt) |
+
+---
 
 ## 🚨 Probleemoplossing
-
-### Docker Problemen
 
 **Container start niet:**
 ```bash
 docker logs klaverjassen-app
 ```
 
-**Poort 9876 is al in gebruik:**
-- Stop andere applicaties die poort 9876 gebruiken
-- Of start de container met een andere host-poort:
+**Poort 9876 al in gebruik:**
 ```bash
-docker run -d --name klaverjassen-app -p 8001:9876 -v "$(pwd)/data:/app/data" ghcr.io/dhrsoulslayer/klaverjassen:latest
+docker run -d --name klaverjassen-app -p 8080:9876 -v "$(pwd)/data:/app/data" ghcr.io/dhrsoulslayer/klaverjassen:latest
 ```
 
-**Database niet persistent:**
-- Zorg dat de `data` directory bestaat en schrijfbaar is
+**Database niet persistent na herstarten:**
 ```bash
-mkdir data
-chmod 777 data
+mkdir data && chmod 755 data
+# Start de container opnieuw met de -v vlag zoals hierboven
 ```
-
-**Container bijwerken na code wijzigingen:**
-```bash
-docker pull ghcr.io/dhrsoulslayer/klaverjassen:latest
-docker stop klaverjassen-app
-docker rm klaverjassen-app
-docker run -d --name klaverjassen-app -p 9876:9876 -v "$(pwd)/data:/app/data" --restart unless-stopped ghcr.io/dhrsoulslayer/klaverjassen:latest
-```
-
-### Algemeen
 
 **Admin interface geeft 401 Unauthorized:**
-- Controleer of de juiste credentials zijn ingesteld in `server.py`
-- Start de server opnieuw na het wijzigen van credentials
+- Controleer de credentials in `server.py` en herstart de server
 
-**Database error:**
-- Verwijder het oude `klaverjassen_games.db` bestand
-- De server maakt automatisch een nieuwe database aan
+**Database corrupt of leeg:**
+```bash
+# Verwijder het bestand — de server maakt automatisch een nieuwe aan
+rm klaverjassen_games.db
+```
 
 **PWA werkt niet offline:**
-- Controleer of de Service Worker correct is geregistreerd
-- Zorg voor een HTTPS verbinding (of localhost)
+- Controleer of de Service Worker is geregistreerd (DevTools → Application → Service Workers)
+- De app vereist HTTPS of `localhost` voor PWA-functionaliteit
+
+---
 
 ## 📝 Licentie
 
 Deze applicatie is open source en vrij te gebruiken.
+
+
