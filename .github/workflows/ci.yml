@@ -1,0 +1,140 @@
+name: CI Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - dev
+
+jobs:
+  lint:
+    name: Lint Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install linting tools
+        run: |
+          pip install flake8 pylint
+          npm install -g htmlhint csslint eslint
+
+      - name: Lint Python (flake8)
+        run: flake8 server.py --max-line-length=120 --ignore=E501,W503,E302,E303,W291,W292,W293,E261,E262,E265,E266,E128,E127,E126,E251,E221,E241,E272,E231,E711,E712,E722
+
+      - name: Lint HTML
+        run: htmlhint index.html || true
+
+      - name: Lint CSS
+        run: csslint --ignore=ids,adjoining-classes,qualified-headings,unique-headings,overqualified-elements,box-model,important,universal-selector,bulletproof-font-face,font-faces,regex-selectors,unqualified-attributes,shorthand,floats,font-sizes,gradients,zero-units,vendor-prefix,fallback-colors,star-property-hack,underscore-property-hack,outline-none,known-properties,compatible-vendor-prefixes,duplicate-properties,empty-rules styles.css || true
+
+      - name: Lint JavaScript
+        run: |
+          cat > /tmp/.eslintrc.json << 'EOF'
+          {
+            "env": {
+              "browser": true,
+              "es2021": true
+            },
+            "parserOptions": {
+              "ecmaVersion": "latest",
+              "sourceType": "module"
+            },
+            "rules": {
+              "no-unused-vars": "warn",
+              "no-undef": "off",
+              "no-console": "off"
+            }
+          }
+          EOF
+          eslint --no-eslintrc -c /tmp/.eslintrc.json app.js || true
+
+  simulate-game:
+    name: Simulated Card Game
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run game simulation tests
+        run: python tests/simulate_game.py
+
+  server-test:
+    name: Server Startup Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Test server starts correctly
+        run: |
+          python server.py &
+          SERVER_PID=$!
+          sleep 3
+          
+          # Test that server responds
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:9876/)
+          
+          # Kill server
+          kill $SERVER_PID 2>/dev/null || true
+          
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✓ Server responded with HTTP 200"
+          else
+            echo "✗ Server responded with HTTP $HTTP_CODE (expected 200)"
+            exit 1
+          fi
+
+      - name: Test API endpoints
+        run: |
+          python server.py &
+          SERVER_PID=$!
+          sleep 3
+          
+          # Test stats endpoint
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:9876/api/stats)
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✓ /api/stats responded with HTTP 200"
+          else
+            echo "✗ /api/stats responded with HTTP $HTTP_CODE"
+            kill $SERVER_PID 2>/dev/null || true
+            exit 1
+          fi
+          
+          # Test games endpoint
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:9876/api/games)
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✓ /api/games responded with HTTP 200"
+          else
+            echo "✗ /api/games responded with HTTP $HTTP_CODE"
+            kill $SERVER_PID 2>/dev/null || true
+            exit 1
+          fi
+          
+          kill $SERVER_PID 2>/dev/null || true
+          echo "All API tests passed! ✓"
